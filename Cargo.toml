@@ -1,2 +1,9 @@
 [workspace]
 members = ["rlalgs", "rlenv"]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Alessandro Lavelli"]
+description = "Rust implementation of Reinforcement Learning Algorithms"
+edition = "2021"
+license = "Apache 2.0"

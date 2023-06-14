@@ -16,3 +16,12 @@ pub trait Environment {
     /// `observation`: n-dimensional array representing the environment observation
     fn step(action: Array<f32, IxDyn>) -> Array<f32, IxDyn>;
 }
+
+#[cfg(feature = "gymnasium")]
+pub fn hello() { 
+    println!("hello"); 
+}
+
+pub fn hello_free() { 
+    println!("hello free"); 
+}

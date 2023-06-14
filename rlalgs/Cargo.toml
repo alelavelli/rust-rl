@@ -1,7 +1,14 @@
 [package]
 name = "rlalgs"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Reinforcement Learning Environment"
+
+[features]
+# gymnasium feature enable gymnasium dependency of rlenv that allow to use RL environments with gymnasium
+gymnasium = ["rlenv/gymnasium"]
 
 [dependencies]
 ndarray = "0.15.6"
+rlenv = { path = "../rlenv"}
