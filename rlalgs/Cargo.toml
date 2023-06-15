@@ -11,4 +11,7 @@ gymnasium = ["rlenv/gymnasium"]
 
 [dependencies]
 ndarray = "0.15.6"
+ndarray-rand = "0.14.0"
+ndarray-stats = "0.5.1"
 rlenv = { path = "../rlenv"}
+thiserror = "1.0.40"
