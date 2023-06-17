@@ -5,7 +5,6 @@ use ndarray::Array2;
 use ndarray_rand::rand;
 use rlenv::EnvironmentError;
 use std::{error::Error, fmt::Debug};
-use thiserror;
 
 pub mod learn;
 pub mod policy;

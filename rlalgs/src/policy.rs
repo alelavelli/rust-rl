@@ -4,7 +4,7 @@ use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
 
-/// StateValuePolicy
+/// EGreedyTabularPolicy
 ///
 /// this policy stores the state-value function of the environment and chooses action
 /// that maximize it
@@ -46,5 +46,34 @@ impl TabularPolicy for EGreedyTabularPolicy {
 
     fn update_q_entry(&mut self, observation: i32, action: i32, value: f32) {
         self.q[[observation as usize, action as usize]] = value;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ndarray::Array;
+
+    use crate::{policy::EGreedyTabularPolicy, TabularPolicy};
+
+    #[test]
+    fn greedy_policy_step() {
+        let n_states = 2;
+        let n_actions = 5;
+        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0);
+        pi.q = Array::zeros((n_states, n_actions));
+        pi.q[[0, 0]] = 10.0;
+        pi.q[[1, 1]] = 10.0;
+        let mut rng = rand::thread_rng();
+        assert_eq!(pi.step(0, &mut rng).unwrap(), 0);
+        assert_eq!(pi.step(1, &mut rng).unwrap(), 1);
+    }
+
+    #[test]
+    fn update_q_entry() {
+        let n_states = 2;
+        let n_actions = 5;
+        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0);
+        pi.update_q_entry(0, 0, 5.0);
+        assert_eq!(pi.q[[0, 0]], 5.0);
     }
 }

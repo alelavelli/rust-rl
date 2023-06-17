@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rlenv::TabularEnvironment;
+use rlenv::{TabularEnvironment, TabularEpisode};
 
 use crate::{EpisodeGenerationError, LearningError, TabularPolicy};
 
@@ -34,11 +34,11 @@ where
     // TODO: check if there is no entry for the state-action pair. In this case, use entry default to 0.0
     let mut returns: HashMap<(i32, i32), Vec<f32>> = HashMap::new();
 
-    for i in 0..episodes {
+    for _ in 0..episodes {
         // GENERATE EPISODE
-        let (states, actions, rewards) = generate_episode(policy, environment, &mut rng)
+        let episode = generate_episode(policy, environment, &mut rng)
             .map_err(LearningError::EpisodeGeneration)?;
-
+        let (states, actions, rewards) = (episode.states, episode.actions, episode.rewards);
         // Update Q function
         let mut g = 0.0;
         for t in (0..states.len()).rev() {
@@ -69,13 +69,7 @@ where
 /// ## Returns
 ///
 /// true if the pair s,a is the first time it appear in the episode
-fn is_first_visit(
-    state: i32,
-    action: i32,
-    states: &Vec<i32>,
-    actions: &Vec<i32>,
-    t: usize,
-) -> bool {
+fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: usize) -> bool {
     for i in 0..t {
         if states[i] == state && actions[i] == action {
             return false;
@@ -95,7 +89,7 @@ fn generate_episode<P, E>(
     policy: &mut P,
     environment: &mut E,
     rng: &mut rand::rngs::ThreadRng,
-) -> Result<(Vec<i32>, Vec<i32>, Vec<f32>), EpisodeGenerationError>
+) -> Result<TabularEpisode, EpisodeGenerationError>
 where
     P: TabularPolicy,
     E: TabularEnvironment,
@@ -126,5 +120,9 @@ where
         // record r_{t+1}
         rewards.push(reward);
     }
-    Ok((states, actions, rewards))
+    Ok(TabularEpisode {
+        states,
+        actions,
+        rewards,
+    })
 }

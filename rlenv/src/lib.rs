@@ -39,6 +39,12 @@ pub trait TabularEnvironment {
     ) -> Result<(i32, f32), EnvironmentError>;
 }
 
+pub struct TabularEpisode {
+    pub states: Vec<i32>,
+    pub actions: Vec<i32>,
+    pub rewards: Vec<f32>,
+}
+
 #[cfg(feature = "gymnasium")]
 pub fn hello() {
     println!("hello");
