@@ -10,7 +10,11 @@ description = "Reinforcement Learning Algorithms"
 gymnasium = ["dep:gym"]
 
 [dependencies]
-ndarray = "0.15.6"
+ndarray = { workspace = true }
+ndarray-rand = { workspace = true }
+ndarray-stats = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
 # gym dependency forces the user to have installed Python and gymnasium package
 # therefore, we put it as optional and it can be enabled by the package feature `gymnasium`
 gym = { version = "2.2.1", optional = true }

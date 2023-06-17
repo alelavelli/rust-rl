@@ -7,3 +7,18 @@ authors = ["Alessandro Lavelli"]
 description = "Rust implementation of Reinforcement Learning Algorithms"
 edition = "2021"
 license = "Apache 2.0"
+
+[workspace.dependencies]
+serde_json = "1.0.95"
+strum = "0.24.1"
+strum_macros = "0.24.3"
+indicatif = "0.17.3"
+log = "0.4.17"
+colorous = "1.0.10"
+itertools = "0.10.5"
+env_logger = "0.10.0"
+rand = "0.8.5"
+ndarray = "0.15.6"
+ndarray-rand = "0.14.0"
+ndarray-stats = "0.5.1"
+thiserror = "1.0.40"

@@ -10,8 +10,9 @@ description = "Reinforcement Learning Environment"
 gymnasium = ["rlenv/gymnasium"]
 
 [dependencies]
-ndarray = "0.15.6"
-ndarray-rand = "0.14.0"
-ndarray-stats = "0.5.1"
-rlenv = { path = "../rlenv"}
-thiserror = "1.0.40"
+rlenv = { path = "../rlenv" }
+ndarray = { workspace = true }
+ndarray-rand = { workspace = true }
+ndarray-stats = { workspace = true }
+thiserror = { workspace = true }
+rand = {workspace = true }

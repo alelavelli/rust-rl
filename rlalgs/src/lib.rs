@@ -1,16 +1,19 @@
 //! Rust RL Algorithms
 //!
 //! The library contains the main Reinforcement Learning algorithms divided by standard tassonomy
-use std::{fmt::Debug, error::Error};
-use ndarray::{Array, IxDyn};
+use ndarray::Array2;
+use ndarray_rand::rand;
+use rlenv::EnvironmentError;
+use std::{error::Error, fmt::Debug};
 use thiserror;
 
+pub mod learn;
 pub mod policy;
 
 #[derive(thiserror::Error)]
 pub enum PolicyError {
     #[error("Failed to compute action")]
-    GenericError
+    GenericError,
 }
 
 impl Debug for PolicyError {
@@ -30,23 +33,67 @@ pub trait TabularPolicy {
     /// ## Parameters
     ///
     /// `observation`: indentifier of the state
+    /// `rng`: random seed
     ///
     /// ## Returns
     ///
-    /// `action`: identifier of the action
-    fn step(&mut self, observation: i32) -> Result<i32, PolicyError>;
-}
+    /// `action`: identifier of the action wrapped in Result
+    fn step(&self, observation: i32, rng: &mut rand::rngs::ThreadRng) -> Result<i32, PolicyError>;
 
-/// The Policy trait defines interface to interact with the environment as an Agent
-pub trait Policy {
-    /// step
+    /// update q function
     ///
     /// ## Parameters
     ///
-    /// `observation`: n-dimensional array representing the environment observation
+    /// `observation`: identifier of the state
+    /// `action`: identifier of the action
+    /// `value`: value of Q(s, a)
+    fn update_q_entry(&mut self, observation: i32, action: i32, value: f32);
+
+    /// set q function
     ///
-    /// ## Returns
+    /// ## Parameters
     ///
-    /// `action`: n-dimensional array representing the action to take
-    fn step(&mut self, observations: Array<f32, IxDyn>) -> Result<Array<f32, IxDyn>, PolicyError>;
+    /// `q`: q matrix
+    fn set_q(&mut self, q: Array2<f32>);
+}
+
+#[derive(thiserror::Error)]
+pub enum LearningError {
+    #[error("Failed to generate episode")]
+    EpisodeGeneration(#[source] EpisodeGenerationError),
+
+    #[error("Failed to learn")]
+    GenericError,
+}
+
+impl Debug for LearningError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self)?;
+        if let Some(source) = self.source() {
+            writeln!(f, "Caused by:\n\t{}", source)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(thiserror::Error)]
+pub enum EpisodeGenerationError {
+    #[error("Failed to make policy step")]
+    PolicyStep(#[source] PolicyError),
+
+    #[error("Failed to make environment step")]
+    EnvironmentStep(#[source] EnvironmentError),
+
+    #[error("Failed to learn")]
+    GenericError,
+}
+
+impl Debug for EpisodeGenerationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self)?;
+        if let Some(source) = self.source() {
+            writeln!(f, "Caused by:\n\t{}", source)?;
+        }
+        Ok(())
+    }
 }
