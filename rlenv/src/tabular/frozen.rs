@@ -35,15 +35,21 @@ pub struct FrozenLake {
     initial_row: i32,
     initial_col: i32,
     n_actions: i32,
-    map: Array2<ForzenLakeStateType>,
+    map: Array2<FrozenLakeStateType>,
     current_row: i32,
     current_col: i32,
 }
 
+const LEFT: i32 = 0;
+const DOWN: i32 = 1;
+const RIGHT: i32 = 2;
+const UP: i32 = 3;
+
 /// Enumeration for the environment FrozenLake
 ///
-/// Each value contains a bool to indicate if it is a terminal stat
-pub enum ForzenLakeStateType {
+/// Each value contains a bool to indicate if it is a terminal state
+#[derive(PartialEq, Debug)]
+pub enum FrozenLakeStateType {
     Start,
     Frozen,
     Hole,
@@ -59,28 +65,28 @@ impl FrozenLake {
             n_actions: 4,
             map: array![
                 [
-                    ForzenLakeStateType::Start,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Frozen
+                    FrozenLakeStateType::Start,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Frozen
                 ],
                 [
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Hole,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Hole
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Hole,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Hole
                 ],
                 [
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Hole
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Hole
                 ],
                 [
-                    ForzenLakeStateType::Hole,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Frozen,
-                    ForzenLakeStateType::Goal
+                    FrozenLakeStateType::Hole,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Frozen,
+                    FrozenLakeStateType::Goal
                 ]
             ],
             current_row: 0,
@@ -92,7 +98,7 @@ impl FrozenLake {
         self.current_row * self.map_dim.0 + self.current_col
     }
 
-    fn get_current_state_type(&self) -> &ForzenLakeStateType {
+    fn get_current_state_type(&self) -> &FrozenLakeStateType {
         &self.map[[self.current_row as usize, self.current_col as usize]]
     }
 
@@ -104,7 +110,7 @@ impl FrozenLake {
 
     fn get_current_state_reward(&self) -> f32 {
         match self.map[[self.current_row as usize, self.current_col as usize]] {
-            ForzenLakeStateType::Goal => 1.0,
+            FrozenLakeStateType::Goal => 1.0,
             _ => 0.0,
         }
     }
@@ -127,7 +133,7 @@ impl TabularEnvironment for FrozenLake {
         let (r, c) = self.to_row_col(state);
         matches!(
             self.map[[r as usize, c as usize]],
-            ForzenLakeStateType::Hole | ForzenLakeStateType::Goal
+            FrozenLakeStateType::Hole | FrozenLakeStateType::Goal
         )
     }
 
@@ -140,14 +146,10 @@ impl TabularEnvironment for FrozenLake {
         let mut new_col = self.current_col;
 
         match action {
-            // left
-            0 => new_col = cmp::max(self.current_col - 1, 0),
-            // down
-            1 => new_row = cmp::min(self.current_row + 1, self.map_dim.0 - 1),
-            // right
-            2 => new_col = cmp::min(self.current_col + 1, self.map_dim.1 - 1),
-            // up
-            3 => new_row = cmp::max(self.current_row - 1, 0),
+            LEFT => new_col = cmp::max(self.current_col - 1, 0),
+            DOWN => new_row = cmp::min(self.current_row + 1, self.map_dim.0 - 1),
+            RIGHT => new_col = cmp::min(self.current_col + 1, self.map_dim.1 - 1),
+            UP => new_row = cmp::max(self.current_row - 1, 0),
             _ => return Err(EnvironmentError::WrongAction),
         };
 
@@ -168,5 +170,110 @@ impl TabularEnvironment for FrozenLake {
 
     fn get_number_actions(&self) -> i32 {
         self.n_actions
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tabular::{
+        frozen::{FrozenLakeStateType, DOWN, LEFT, RIGHT, UP},
+        TabularEnvironment,
+    };
+
+    use super::FrozenLake;
+
+    #[test]
+    fn test_reset() {
+        let env = FrozenLake::new();
+
+        assert_eq!(env.current_col, 0);
+        assert_eq!(env.current_row, 0);
+        assert_eq!(env.get_current_state_id(), 0);
+        assert_eq!(env.get_current_state_reward(), 0.0);
+        assert_eq!(*env.get_current_state_type(), FrozenLakeStateType::Start);
+    }
+
+    #[test]
+    fn test_step_left() {
+        let mut env = FrozenLake::new();
+        let mut rng = rand::thread_rng();
+
+        let step = env.step(LEFT, &mut rng).unwrap();
+
+        assert_eq!(step.observation, 0);
+        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.terminated, false);
+        assert_eq!(step.truncated, false);
+    }
+
+    #[test]
+    fn test_step_right() {
+        let mut env = FrozenLake::new();
+        let mut rng = rand::thread_rng();
+
+        let step = env.step(RIGHT, &mut rng).unwrap();
+
+        assert_eq!(step.observation, 1);
+        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.terminated, false);
+        assert_eq!(step.truncated, false);
+    }
+
+    #[test]
+    fn test_step_down() {
+        let mut env = FrozenLake::new();
+        let mut rng = rand::thread_rng();
+
+        let step = env.step(DOWN, &mut rng).unwrap();
+
+        assert_eq!(step.observation, 4);
+        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.terminated, false);
+        assert_eq!(step.truncated, false);
+    }
+
+    #[test]
+    fn test_step_up() {
+        let mut env = FrozenLake::new();
+        let mut rng = rand::thread_rng();
+
+        let step = env.step(UP, &mut rng).unwrap();
+
+        assert_eq!(step.observation, 0);
+        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.terminated, false);
+        assert_eq!(step.truncated, false);
+    }
+
+    #[test]
+    fn test_step_hole() {
+        let mut env = FrozenLake::new();
+        env.current_row = 1;
+        env.current_col = 0;
+        let mut rng = rand::thread_rng();
+
+        let step = env.step(RIGHT, &mut rng).unwrap();
+
+        assert_eq!(step.observation, 5);
+        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.terminated, true);
+        assert_eq!(step.truncated, false);
+        assert_eq!(*env.get_current_state_type(), FrozenLakeStateType::Hole);
+    }
+
+    #[test]
+    fn test_step_goal() {
+        let mut env = FrozenLake::new();
+        env.current_row = 3;
+        env.current_col = 2;
+        let mut rng = rand::thread_rng();
+
+        let step = env.step(RIGHT, &mut rng).unwrap();
+
+        assert_eq!(step.observation, 15);
+        assert_eq!(step.reward, 1.0);
+        assert_eq!(step.terminated, true);
+        assert_eq!(step.truncated, false);
+        assert_eq!(*env.get_current_state_type(), FrozenLakeStateType::Goal);
     }
 }

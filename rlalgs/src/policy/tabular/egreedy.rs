@@ -52,7 +52,7 @@ impl TabularPolicy for EGreedyTabularPolicy {
 }
 
 #[cfg(test)]
-mod egreede_policy_tests {
+mod tests {
     use ndarray::Array;
 
     use crate::policy::tabular::egreedy::EGreedyTabularPolicy;
