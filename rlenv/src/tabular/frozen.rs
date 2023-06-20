@@ -1,10 +1,41 @@
-use std::cmp;
+use std::{cmp, fmt};
 
 use ndarray::{array, Array2};
 
-use crate::{tabular::TabularEnvironment, EnvironmentError};
-
 use super::TabularStep;
+use crate::{tabular::TabularEnvironment, EnvironmentError};
+use colored::Colorize;
+
+const LEFT: i32 = 0;
+const DOWN: i32 = 1;
+const RIGHT: i32 = 2;
+const UP: i32 = 3;
+
+/// Enumeration for the environment FrozenLake
+///
+/// Each value contains a bool to indicate if it is a terminal state
+#[derive(PartialEq, Debug)]
+pub enum FrozenLakeStateType {
+    Start,
+    Frozen,
+    Hole,
+    Goal,
+}
+
+impl fmt::Display for FrozenLakeStateType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                FrozenLakeStateType::Frozen => "F",
+                FrozenLakeStateType::Hole => "H",
+                FrozenLakeStateType::Start => "S",
+                FrozenLakeStateType::Goal => "G",
+            }
+        )
+    }
+}
 
 /// ForzenLake tabular environment
 ///
@@ -38,22 +69,6 @@ pub struct FrozenLake {
     map: Array2<FrozenLakeStateType>,
     current_row: i32,
     current_col: i32,
-}
-
-const LEFT: i32 = 0;
-const DOWN: i32 = 1;
-const RIGHT: i32 = 2;
-const UP: i32 = 3;
-
-/// Enumeration for the environment FrozenLake
-///
-/// Each value contains a bool to indicate if it is a terminal state
-#[derive(PartialEq, Debug)]
-pub enum FrozenLakeStateType {
-    Start,
-    Frozen,
-    Hole,
-    Goal,
 }
 
 impl FrozenLake {
@@ -109,7 +124,7 @@ impl FrozenLake {
     }
 
     fn get_current_state_reward(&self) -> f32 {
-        match self.map[[self.current_row as usize, self.current_col as usize]] {
+        match self.get_current_state_type() {
             FrozenLakeStateType::Goal => 1.0,
             _ => 0.0,
         }
@@ -142,19 +157,21 @@ impl TabularEnvironment for FrozenLake {
         action: i32,
         #[allow(unused_variables)] rng: &mut rand::rngs::ThreadRng,
     ) -> Result<TabularStep, crate::EnvironmentError> {
-        let mut new_row = self.current_row;
-        let mut new_col = self.current_col;
+        if !self.is_terminal(self.get_current_state_id()) {
+            let mut new_row = self.current_row;
+            let mut new_col = self.current_col;
 
-        match action {
-            LEFT => new_col = cmp::max(self.current_col - 1, 0),
-            DOWN => new_row = cmp::min(self.current_row + 1, self.map_dim.0 - 1),
-            RIGHT => new_col = cmp::min(self.current_col + 1, self.map_dim.1 - 1),
-            UP => new_row = cmp::max(self.current_row - 1, 0),
-            _ => return Err(EnvironmentError::WrongAction),
-        };
+            match action {
+                LEFT => new_col = cmp::max(self.current_col - 1, 0),
+                DOWN => new_row = cmp::min(self.current_row + 1, self.map_dim.0 - 1),
+                RIGHT => new_col = cmp::min(self.current_col + 1, self.map_dim.1 - 1),
+                UP => new_row = cmp::max(self.current_row - 1, 0),
+                _ => return Err(EnvironmentError::WrongAction),
+            };
 
-        self.current_row = new_row;
-        self.current_col = new_col;
+            self.current_row = new_row;
+            self.current_col = new_col;
+        }
 
         Ok(TabularStep {
             observation: self.get_current_state_id(),
@@ -170,6 +187,26 @@ impl TabularEnvironment for FrozenLake {
 
     fn get_number_actions(&self) -> i32 {
         self.n_actions
+    }
+
+    fn render(&self) {
+        for row in 0..self.map_dim.0 {
+            for col in 0..self.map_dim.1 {
+                if (row == self.current_row) & (col == self.current_col) {
+                    print!(
+                        "{}",
+                        &format!("{:^5}", self.map[[row as usize, col as usize]]).on_color("red")
+                    )
+                } else {
+                    print!(
+                        "{}",
+                        &format!("{:^5}", self.map[[row as usize, col as usize]])
+                    )
+                }
+            }
+            println!("");
+            //println!("{}", row_to_print);
+        }
     }
 }
 

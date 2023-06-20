@@ -40,6 +40,11 @@ pub trait TabularEnvironment {
         action: i32,
         rng: &mut rand::rngs::ThreadRng,
     ) -> Result<TabularStep, EnvironmentError>;
+
+    /// render
+    ///
+    /// shows the environment to the console
+    fn render(&self);
 }
 
 /// TabularEpisode

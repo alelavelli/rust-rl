@@ -15,4 +15,5 @@ ndarray = { workspace = true }
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
 thiserror = { workspace = true }
-rand = {workspace = true }
+rand = { workspace = true }
+colored = { workspace = true }
