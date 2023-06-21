@@ -17,3 +17,4 @@ ndarray-stats = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
 colored = { workspace = true }
+rand_distr = { workspace = true }

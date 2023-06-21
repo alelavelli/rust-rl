@@ -1,4 +1,5 @@
 use ndarray::Array2;
+use rand::Rng;
 
 use super::PolicyError;
 
@@ -16,7 +17,9 @@ pub trait TabularPolicy {
     /// ## Returns
     ///
     /// `action`: identifier of the action wrapped in Result
-    fn step(&self, observation: i32, rng: &mut rand::rngs::ThreadRng) -> Result<i32, PolicyError>;
+    fn step<R>(&self, observation: i32, rng: &mut R) -> Result<i32, PolicyError>
+    where
+        R: Rng + ?Sized;
 
     /// update q function
     ///

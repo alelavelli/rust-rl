@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use crate::EnvironmentError;
 
 pub mod frozen;
@@ -35,11 +37,9 @@ pub trait TabularEnvironment {
     /// ## Returns
     ///
     /// `observation`: identifier of the state
-    fn step(
-        &mut self,
-        action: i32,
-        rng: &mut rand::rngs::ThreadRng,
-    ) -> Result<TabularStep, EnvironmentError>;
+    fn step<R>(&mut self, action: i32, rng: &mut R) -> Result<TabularStep, EnvironmentError>
+    where
+        R: Rng + ?Sized;
 
     /// render
     ///
@@ -51,6 +51,7 @@ pub trait TabularEnvironment {
 ///
 /// Struct containing the information about an episode the agent
 /// did with the environment
+#[derive(Debug)]
 pub struct TabularEpisode {
     pub states: Vec<i32>,
     pub actions: Vec<i32>,

@@ -1,5 +1,6 @@
 pub mod montecarlo;
 
+use rand::Rng;
 use rlenv::tabular::{TabularEnvironment, TabularEpisode};
 
 use crate::{policy::tabular::TabularPolicy, EpisodeGenerationError};
@@ -11,14 +12,16 @@ use crate::{policy::tabular::TabularPolicy, EpisodeGenerationError};
 /// `policy`: policy to use in the environment
 /// `environment`: environment to use
 /// `rng`: random seed
-fn generate_tabular_episode<P, E>(
+pub fn generate_tabular_episode<P, E, R>(
     policy: &mut P,
     environment: &mut E,
-    rng: &mut rand::rngs::ThreadRng,
+    rng: &mut R,
+    render_env: bool,
 ) -> Result<TabularEpisode, EpisodeGenerationError>
 where
     P: TabularPolicy,
     E: TabularEnvironment,
+    R: Rng + ?Sized,
 {
     // trace variables
     let mut states: Vec<i32> = Vec::new();
@@ -28,6 +31,10 @@ where
     let mut state = environment.reset();
     let mut action: i32;
     let mut reward: f32;
+
+    if render_env {
+        environment.render();
+    }
 
     // loop to generate the episode
     // Monte Carlo only works for terminating environments, hence, we do not need to set maximum episode length
@@ -48,6 +55,10 @@ where
 
         // record r_{t+1}
         rewards.push(reward);
+
+        if render_env {
+            environment.render();
+        }
     }
     Ok(TabularEpisode {
         states,

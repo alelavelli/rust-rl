@@ -3,6 +3,7 @@ use ndarray::{s, Array, Array2};
 use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
+use rand::Rng;
 
 use super::TabularPolicy;
 
@@ -27,7 +28,10 @@ impl EGreedyTabularPolicy {
 }
 
 impl TabularPolicy for EGreedyTabularPolicy {
-    fn step(&self, observation: i32, rng: &mut rand::rngs::ThreadRng) -> Result<i32, PolicyError> {
+    fn step<R>(&self, observation: i32, rng: &mut R) -> Result<i32, PolicyError>
+    where
+        R: Rng + ?Sized,
+    {
         // The operations are the followings:
         //   1- get the Q(s, a) values for the given state observation
         //   2- find the action with maximum value

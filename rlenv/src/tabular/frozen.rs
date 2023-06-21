@@ -1,6 +1,7 @@
 use std::{cmp, fmt};
 
 use ndarray::{array, Array2};
+use rand::Rng;
 
 use super::TabularStep;
 use crate::{tabular::TabularEnvironment, EnvironmentError};
@@ -152,11 +153,14 @@ impl TabularEnvironment for FrozenLake {
         )
     }
 
-    fn step(
+    fn step<R>(
         &mut self,
         action: i32,
-        #[allow(unused_variables)] rng: &mut rand::rngs::ThreadRng,
-    ) -> Result<TabularStep, crate::EnvironmentError> {
+        #[allow(unused_variables)] rng: &mut R,
+    ) -> Result<TabularStep, crate::EnvironmentError>
+    where
+        R: Rng + ?Sized,
+    {
         if !self.is_terminal(self.get_current_state_id()) {
             let mut new_row = self.current_row;
             let mut new_col = self.current_col;
@@ -172,6 +176,13 @@ impl TabularEnvironment for FrozenLake {
             self.current_row = new_row;
             self.current_col = new_col;
         }
+
+        /*if matches!(
+            self.get_current_state_type(),
+            FrozenLakeStateType::Goal
+        ){
+            println!("Goal reached!");
+        }*/
 
         Ok(TabularStep {
             observation: self.get_current_state_id(),
@@ -190,6 +201,7 @@ impl TabularEnvironment for FrozenLake {
     }
 
     fn render(&self) {
+        println!("----");
         for row in 0..self.map_dim.0 {
             for col in 0..self.map_dim.1 {
                 if (row == self.current_row) & (col == self.current_col) {
@@ -206,6 +218,7 @@ impl TabularEnvironment for FrozenLake {
             }
             println!();
         }
+        println!("----");
     }
 }
 

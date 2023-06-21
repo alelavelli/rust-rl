@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use rand::Rng;
 use rlenv::tabular::TabularEnvironment;
 
 use crate::{
@@ -19,26 +20,27 @@ use crate::{
 /// ## Returns
 ///
 /// `new_policy`: new policy that was optimized over the environment
-pub fn montecarlo<P, E>(
+pub fn montecarlo<P, E, R>(
     policy: &mut P,
     environment: &mut E,
     episodes: i32,
     gamma: f32,
-    first_visit: bool,
+    first_visit_mode: bool,
+    render_env: bool,
+    rng: &mut R,
 ) -> Result<(), LearningError>
 where
     P: TabularPolicy,
     E: TabularEnvironment,
+    R: Rng + ?Sized,
 {
-    let mut rng = rand::thread_rng();
-
     // initialize variables
     // TODO: check if there is no entry for the state-action pair. In this case, use entry default to 0.0
     let mut returns: HashMap<(i32, i32), Vec<f32>> = HashMap::new();
 
     for _ in 0..episodes {
         // GENERATE EPISODE
-        let episode = generate_tabular_episode(policy, environment, &mut rng)
+        let episode = generate_tabular_episode(policy, environment, rng, render_env)
             .map_err(LearningError::EpisodeGeneration)?;
         let (states, actions, rewards) = (episode.states, episode.actions, episode.rewards);
         // Update Q function
@@ -47,7 +49,7 @@ where
             g = gamma * g + rewards[t];
             // If we are in first_visit settings then we check that the pair s,a a time t is the first visit
             // otherwise, we enter always
-            if !first_visit | is_first_visit(states[t], actions[t], &states, &actions, t) {
+            if !first_visit_mode | is_first_visit(states[t], actions[t], &states, &actions, t) {
                 let sa_returns = returns.entry((states[t], actions[t])).or_insert(Vec::new());
                 sa_returns.push(g);
                 let new_q_value: f32 = sa_returns.iter().sum::<f32>() / sa_returns.len() as f32;
@@ -78,4 +80,19 @@ fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: u
         }
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::learn::tabular::montecarlo::is_first_visit;
+
+    #[test]
+    fn test_is_first_visit() {
+        let states = [3, 3, 3, 1, 4];
+        let actions = [6, 5, 6, 5, 6];
+
+        assert!(is_first_visit(3, 6, &states, &actions, 0));
+        assert!(!is_first_visit(3, 6, &states, &actions, 1));
+        assert!(!is_first_visit(3, 6, &states, &actions, 2));
+    }
 }
