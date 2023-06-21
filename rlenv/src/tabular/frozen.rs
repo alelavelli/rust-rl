@@ -204,8 +204,7 @@ impl TabularEnvironment for FrozenLake {
                     )
                 }
             }
-            println!("");
-            //println!("{}", row_to_print);
+            println!();
         }
     }
 }

@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use rlenv::tabular::TabularEnvironment;
 
 use crate::{
-    learn::{generate_episode, LearningError},
-    policy::tabular::TabularPolicy,
+    learn::tabular::generate_tabular_episode, learn::LearningError, policy::tabular::TabularPolicy,
 };
 
 /// Monte Carlo First Visit
@@ -39,7 +38,7 @@ where
 
     for _ in 0..episodes {
         // GENERATE EPISODE
-        let episode = generate_episode(policy, environment, &mut rng)
+        let episode = generate_tabular_episode(policy, environment, &mut rng)
             .map_err(LearningError::EpisodeGeneration)?;
         let (states, actions, rewards) = (episode.states, episode.actions, episode.rewards);
         // Update Q function
