@@ -2,7 +2,7 @@ use std::{error::Error, fmt::Debug};
 
 use rlenv::EnvironmentError;
 
-use crate::{EpisodeGenerationError, policy::PolicyError};
+use crate::{policy::PolicyError, EpisodeGenerationError};
 
 pub mod tabular;
 

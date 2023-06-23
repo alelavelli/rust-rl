@@ -111,7 +111,7 @@ impl FrozenLake {
     }
 
     fn get_state_id(&self, row: i32, col: i32) -> i32 {
-        row * self.map_dim.0 + col
+        row * self.map_dim.1 + col
     }
 
     fn get_state_type(&self, state: i32) -> &FrozenLakeStateType {
@@ -127,7 +127,7 @@ impl FrozenLake {
     }
 
     fn to_row_col(&self, state: i32) -> (i32, i32) {
-        let row = (state as f32 / self.map_dim.0 as f32).floor() as i32;
+        let row = (state as f32 / self.map_dim.1 as f32).floor() as i32;
         let col = state - row * self.map_dim.1;
         (row, col)
     }
@@ -200,7 +200,7 @@ impl TabularEnvironment for FrozenLake {
     }
 
     fn get_number_states(&self) -> i32 {
-        (self.map_dim.0 * self.map_dim.1) as i32
+        self.map_dim.0 * self.map_dim.1
     }
 
     fn get_number_actions(&self) -> i32 {
@@ -245,8 +245,14 @@ mod tests {
         assert_eq!(env.current_col, 0);
         assert_eq!(env.current_row, 0);
         assert_eq!(env.get_state_id(env.current_row, env.current_col), 0);
-        assert_eq!(env.get_state_reward(env.get_state_id(env.current_row, env.current_col)), 0.0);
-        assert_eq!(*env.get_state_type(env.get_state_id(env.current_row, env.current_col)), FrozenLakeStateType::Start);
+        assert_eq!(
+            env.get_state_reward(env.get_state_id(env.current_row, env.current_col)),
+            0.0
+        );
+        assert_eq!(
+            *env.get_state_type(env.get_state_id(env.current_row, env.current_col)),
+            FrozenLakeStateType::Start
+        );
     }
 
     #[test]
@@ -314,7 +320,10 @@ mod tests {
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
-        assert_eq!(*env.get_state_type(env.get_state_id(env.current_row, env.current_col)), FrozenLakeStateType::Hole);
+        assert_eq!(
+            *env.get_state_type(env.get_state_id(env.current_row, env.current_col)),
+            FrozenLakeStateType::Hole
+        );
     }
 
     #[test]
@@ -330,6 +339,9 @@ mod tests {
         assert_eq!(step.reward, 1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
-        assert_eq!(*env.get_state_type(env.get_state_id(env.current_row, env.current_col)), FrozenLakeStateType::Goal);
+        assert_eq!(
+            *env.get_state_type(env.get_state_id(env.current_row, env.current_col)),
+            FrozenLakeStateType::Goal
+        );
     }
 }

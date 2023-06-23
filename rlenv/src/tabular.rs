@@ -3,6 +3,7 @@ use rand::Rng;
 use crate::EnvironmentError;
 
 pub mod frozen;
+pub mod windy_gridworld;
 
 /// Trait for Tabular Environments
 ///

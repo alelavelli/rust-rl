@@ -19,9 +19,18 @@ pub struct EGreedyTabularPolicy {
 
 impl EGreedyTabularPolicy {
     /// Create new epsilon-greedy Policy initializing the state action value function with random values
-    pub fn new(number_state: usize, number_actions: usize, epsilon: f32) -> EGreedyTabularPolicy {
+    pub fn new(
+        number_state: usize,
+        number_actions: usize,
+        epsilon: f32,
+        zero_q: bool,
+    ) -> EGreedyTabularPolicy {
         EGreedyTabularPolicy {
-            q: Array::random((number_state, number_actions), Uniform::new(-1., 1.)),
+            q: if zero_q {
+                Array::zeros((number_state, number_actions))
+            } else {
+                Array::random((number_state, number_actions), Uniform::new(-1., 1.))
+            },
             epsilon,
         }
     }
@@ -74,7 +83,7 @@ mod tests {
     fn deterministic_greedy_policy_step() {
         let n_states = 2;
         let n_actions = 5;
-        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0);
+        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0, false);
         pi.q = Array::zeros((n_states, n_actions));
         pi.q[[0, 0]] = 10.0;
         pi.q[[1, 1]] = 10.0;
@@ -88,7 +97,7 @@ mod tests {
         let n_states = 2;
         let n_actions = 3;
         let epsilon = 0.8;
-        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, epsilon);
+        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, epsilon, false);
         pi.q = Array::zeros((n_states, n_actions));
         // state 0 - best action 0
         pi.q[[0, 0]] = 1.0;
@@ -124,7 +133,7 @@ mod tests {
     fn update_q_entry() {
         let n_states = 2;
         let n_actions = 5;
-        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0);
+        let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0, false);
         pi.update_q_entry(0, 0, 5.0);
         assert_eq!(pi.q[[0, 0]], 5.0);
     }

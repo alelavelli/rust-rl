@@ -1,20 +1,33 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::montecarlo::montecarlo;
+use rlalgs::learn::tabular::temporal_difference::sarsa;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
-use rlenv::tabular::frozen::FrozenLake;
+use rlenv::tabular::windy_gridworld::WindyGridworld;
 use rlenv::tabular::TabularEnvironment;
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = FrozenLake::new();
+    let mut env = WindyGridworld::new();
+    env.reset();
+    env.render();
+
     let mut policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
-        0.8,
+        0.1,
+        true,
     );
-    let result = montecarlo(&mut policy, &mut env, 10000, 0.999, false, false, &mut rng);
+    let result = sarsa(
+        &mut policy,
+        &mut env,
+        10000,
+        40,
+        0.999,
+        0.5,
+        false,
+        &mut rng,
+    );
     println!("{:^20?}", policy.q);
 
     policy.epsilon = 0.0;

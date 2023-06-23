@@ -1,8 +1,7 @@
 use rand::Rng;
 use rlenv::tabular::TabularEnvironment;
 
-use crate::{
-    learn::LearningError, policy::tabular::TabularPolicy};
+use crate::{learn::LearningError, policy::tabular::TabularPolicy};
 
 /// Sarsa: on-policy TD
 ///
@@ -18,6 +17,7 @@ use crate::{
 /// ## Returns
 ///
 /// `new_policy`: new policy that was optimized over the environment
+#[allow(clippy::too_many_arguments)]
 pub fn sarsa<P, E, R>(
     policy: &mut P,
     environment: &mut E,
@@ -38,7 +38,7 @@ where
     // therefore we set the value for each terminal state to 0
     for terminal_state in environment.get_terminal_states() {
         for i in 0..environment.get_number_actions() {
-            policy.update_q_entry(terminal_state, i as i32, 0.0);
+            policy.update_q_entry(terminal_state, i, 0.0);
         }
     }
     // loop for each episode
@@ -56,9 +56,11 @@ where
             let episode_step = environment
                 .step(action, rng)
                 .map_err(LearningError::EnvironmentStep)?;
-            
+
             // choose A' from S' with policy
-            let a_prime = policy.step(episode_step.state, rng).map_err(LearningError::PolicyStep)?;
+            let a_prime = policy
+                .step(episode_step.state, rng)
+                .map_err(LearningError::PolicyStep)?;
 
             // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * Q(S', A') - Q(S, A) ]
             let q_sa = policy.get_q_value(state, action);
@@ -74,16 +76,14 @@ where
             if render_env {
                 environment.render();
             }
-            
+
             if episode_step.terminated | (step_number >= episode_max_len) {
                 break;
             }
-
         }
     }
     Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}
