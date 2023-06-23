@@ -28,6 +28,9 @@ pub trait TabularEnvironment {
     /// Returns the number of actions
     fn get_number_actions(&self) -> i32;
 
+    /// Returns the terminal states
+    fn get_terminal_states(&self) -> Vec<i32>;
+
     /// step
     ///
     /// ## Parameters
@@ -64,7 +67,7 @@ pub struct TabularEpisode {
 ///
 /// ## Fields
 ///
-/// `observation`: identifier of the state
+/// `state`: identifier of the state
 /// `reward`: reward got taking the action
 /// `terminated`: whether a terminal state of the MDP is reached
 /// `truncated`: whether a truncation condition outside the scope of the MDP is satisfied.
@@ -72,7 +75,7 @@ pub struct TabularEpisode {
 /// Can be used to end the episode prematurely before a `terminal state` is reached.
 
 pub struct TabularStep {
-    pub observation: i32,
+    pub state: i32,
     pub reward: f32,
     pub terminated: bool,
     pub truncated: bool,

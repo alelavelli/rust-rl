@@ -1,4 +1,5 @@
 pub mod montecarlo;
+pub mod temporal_difference;
 
 use rand::Rng;
 use rlenv::tabular::{TabularEnvironment, TabularEpisode};
@@ -50,7 +51,7 @@ where
         let episode_step = environment
             .step(action, rng)
             .map_err(EpisodeGenerationError::EnvironmentStep)?;
-        state = episode_step.observation;
+        state = episode_step.state;
         reward = episode_step.reward;
 
         // record r_{t+1}

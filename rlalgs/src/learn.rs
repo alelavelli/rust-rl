@@ -1,11 +1,19 @@
 use std::{error::Error, fmt::Debug};
 
-use crate::EpisodeGenerationError;
+use rlenv::EnvironmentError;
+
+use crate::{EpisodeGenerationError, policy::PolicyError};
 
 pub mod tabular;
 
 #[derive(thiserror::Error)]
 pub enum LearningError {
+    #[error("Failed to make policy step")]
+    PolicyStep(#[source] PolicyError),
+
+    #[error("Failed to make environment step")]
+    EnvironmentStep(#[source] EnvironmentError),
+
     #[error("Failed to generate episode")]
     EpisodeGeneration(#[source] EpisodeGenerationError),
 

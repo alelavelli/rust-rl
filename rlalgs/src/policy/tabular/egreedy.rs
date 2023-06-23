@@ -28,7 +28,11 @@ impl EGreedyTabularPolicy {
 }
 
 impl TabularPolicy for EGreedyTabularPolicy {
-    fn step<R>(&self, observation: i32, rng: &mut R) -> Result<i32, PolicyError>
+    fn get_q(&self) -> &Array2<f32> {
+        &self.q
+    }
+
+    fn step<R>(&self, state: i32, rng: &mut R) -> Result<i32, PolicyError>
     where
         R: Rng + ?Sized,
     {
@@ -37,7 +41,7 @@ impl TabularPolicy for EGreedyTabularPolicy {
         //   2- find the action with maximum value
         //   3- create vector of probabilities
         //   4- sample from the distribution
-        let q_values = self.q.slice(s![observation, ..]);
+        let q_values = self.q.slice(s![state, ..]);
         let optimal_action: usize = q_values.argmax().map_err(|_| PolicyError::GenericError)?;
         let num_actions = self.q.shape()[1];
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
@@ -50,8 +54,12 @@ impl TabularPolicy for EGreedyTabularPolicy {
         self.q = q
     }
 
-    fn update_q_entry(&mut self, observation: i32, action: i32, value: f32) {
-        self.q[[observation as usize, action as usize]] = value;
+    fn update_q_entry(&mut self, state: i32, action: i32, value: f32) {
+        self.q[[state as usize, action as usize]] = value;
+    }
+
+    fn get_q_value(&self, state: i32, action: i32) -> f32 {
+        self.q[[state as usize, action as usize]]
     }
 }
 

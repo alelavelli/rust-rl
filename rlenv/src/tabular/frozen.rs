@@ -55,7 +55,7 @@ impl fmt::Display for FrozenLakeStateType {
 ///
 /// The observation space is a value representing the agent's current position
 /// as a single number. The value is equal to current_row + n_rows + current_col
-/// where both row and col start from 0)
+/// where both row and col start from 0
 ///
 /// ## Rewards
 ///
@@ -110,25 +110,26 @@ impl FrozenLake {
         }
     }
 
-    fn get_current_state_id(&self) -> i32 {
-        self.current_row * self.map_dim.0 + self.current_col
+    fn get_state_id(&self, row: i32, col: i32) -> i32 {
+        row * self.map_dim.0 + col
     }
 
-    fn get_current_state_type(&self) -> &FrozenLakeStateType {
-        &self.map[[self.current_row as usize, self.current_col as usize]]
+    fn get_state_type(&self, state: i32) -> &FrozenLakeStateType {
+        let (row, col) = self.to_row_col(state);
+        &self.map[[row as usize, col as usize]]
+    }
+
+    fn get_state_reward(&self, state: i32) -> f32 {
+        match self.get_state_type(state) {
+            FrozenLakeStateType::Goal => 1.0,
+            _ => 0.0,
+        }
     }
 
     fn to_row_col(&self, state: i32) -> (i32, i32) {
         let row = (state as f32 / self.map_dim.0 as f32).floor() as i32;
         let col = state - row * self.map_dim.1;
         (row, col)
-    }
-
-    fn get_current_state_reward(&self) -> f32 {
-        match self.get_current_state_type() {
-            FrozenLakeStateType::Goal => 1.0,
-            _ => 0.0,
-        }
     }
 }
 
@@ -142,15 +143,28 @@ impl TabularEnvironment for FrozenLake {
     fn reset(&mut self) -> i32 {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
-        self.get_current_state_id()
+        self.get_state_id(self.current_row, self.current_col)
     }
 
     fn is_terminal(&self, state: i32) -> bool {
-        let (r, c) = self.to_row_col(state);
+        let (row, col) = self.to_row_col(state);
         matches!(
-            self.map[[r as usize, c as usize]],
+            self.map[[row as usize, col as usize]],
             FrozenLakeStateType::Hole | FrozenLakeStateType::Goal
         )
+    }
+
+    fn get_terminal_states(&self) -> Vec<i32> {
+        let mut terminal_states = Vec::<i32>::new();
+        for row in 0..self.map_dim.0 {
+            for col in 0..self.map_dim.1 {
+                let state = self.get_state_id(row, col);
+                if self.is_terminal(state) {
+                    terminal_states.push(state);
+                }
+            }
+        }
+        terminal_states
     }
 
     fn step<R>(
@@ -161,7 +175,7 @@ impl TabularEnvironment for FrozenLake {
     where
         R: Rng + ?Sized,
     {
-        if !self.is_terminal(self.get_current_state_id()) {
+        if !self.is_terminal(self.get_state_id(self.current_row, self.current_col)) {
             let mut new_row = self.current_row;
             let mut new_col = self.current_col;
 
@@ -177,23 +191,16 @@ impl TabularEnvironment for FrozenLake {
             self.current_col = new_col;
         }
 
-        /*if matches!(
-            self.get_current_state_type(),
-            FrozenLakeStateType::Goal
-        ){
-            println!("Goal reached!");
-        }*/
-
         Ok(TabularStep {
-            observation: self.get_current_state_id(),
-            reward: self.get_current_state_reward(),
-            terminated: self.is_terminal(self.get_current_state_id()),
+            state: self.get_state_id(self.current_row, self.current_col),
+            reward: self.get_state_reward(self.get_state_id(self.current_row, self.current_col)),
+            terminated: self.is_terminal(self.get_state_id(self.current_row, self.current_col)),
             truncated: false,
         })
     }
 
     fn get_number_states(&self) -> i32 {
-        self.map_dim.0 * self.map_dim.1
+        (self.map_dim.0 * self.map_dim.1) as i32
     }
 
     fn get_number_actions(&self) -> i32 {
@@ -237,9 +244,9 @@ mod tests {
 
         assert_eq!(env.current_col, 0);
         assert_eq!(env.current_row, 0);
-        assert_eq!(env.get_current_state_id(), 0);
-        assert_eq!(env.get_current_state_reward(), 0.0);
-        assert_eq!(*env.get_current_state_type(), FrozenLakeStateType::Start);
+        assert_eq!(env.get_state_id(env.current_row, env.current_col), 0);
+        assert_eq!(env.get_state_reward(env.get_state_id(env.current_row, env.current_col)), 0.0);
+        assert_eq!(*env.get_state_type(env.get_state_id(env.current_row, env.current_col)), FrozenLakeStateType::Start);
     }
 
     #[test]
@@ -249,7 +256,7 @@ mod tests {
 
         let step = env.step(LEFT, &mut rng).unwrap();
 
-        assert_eq!(step.observation, 0);
+        assert_eq!(step.state, 0);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -262,7 +269,7 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.observation, 1);
+        assert_eq!(step.state, 1);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -275,7 +282,7 @@ mod tests {
 
         let step = env.step(DOWN, &mut rng).unwrap();
 
-        assert_eq!(step.observation, 4);
+        assert_eq!(step.state, 4);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -288,7 +295,7 @@ mod tests {
 
         let step = env.step(UP, &mut rng).unwrap();
 
-        assert_eq!(step.observation, 0);
+        assert_eq!(step.state, 0);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -303,11 +310,11 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.observation, 5);
+        assert_eq!(step.state, 5);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
-        assert_eq!(*env.get_current_state_type(), FrozenLakeStateType::Hole);
+        assert_eq!(*env.get_state_type(env.get_state_id(env.current_row, env.current_col)), FrozenLakeStateType::Hole);
     }
 
     #[test]
@@ -319,10 +326,10 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.observation, 15);
+        assert_eq!(step.state, 15);
         assert_eq!(step.reward, 1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
-        assert_eq!(*env.get_current_state_type(), FrozenLakeStateType::Goal);
+        assert_eq!(*env.get_state_type(env.get_state_id(env.current_row, env.current_col)), FrozenLakeStateType::Goal);
     }
 }
