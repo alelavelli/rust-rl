@@ -72,7 +72,11 @@ impl TabularPolicy for EGreedyTabularPolicy {
     }
 
     fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError> {
-        self.q.slice(s![state, ..]).max().map_err(|_| PolicyError::GenericError).copied()
+        self.q
+            .slice(s![state, ..])
+            .max()
+            .map_err(|_| PolicyError::GenericError)
+            .copied()
     }
 }
 

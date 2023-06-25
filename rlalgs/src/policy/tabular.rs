@@ -44,7 +44,7 @@ pub trait TabularPolicy {
     fn get_q_value(&self, state: i32, action: i32) -> f32;
 
     /// Return the value of the best action even if it does not represent the policy action
-    /// 
+    ///
     /// max_a { Q(S, a) }
     fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError>;
 }

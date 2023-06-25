@@ -2,6 +2,7 @@ use rand::Rng;
 
 use crate::EnvironmentError;
 
+pub mod cliff_walking;
 pub mod frozen;
 pub mod windy_gridworld;
 

@@ -1,14 +1,14 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::temporal_difference::sarsa;
+use rlalgs::learn::tabular::temporal_difference::qlearning;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
-use rlenv::tabular::windy_gridworld::WindyGridworld;
+use rlenv::tabular::cliff_walking::CliffWalking;
 use rlenv::tabular::TabularEnvironment;
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = WindyGridworld::new();
+    let mut env = CliffWalking::new();
     env.reset();
     env.render();
 
@@ -18,16 +18,7 @@ fn main() {
         0.1,
         true,
     );
-    let result = sarsa(
-        &mut policy,
-        &mut env,
-        10000,
-        40,
-        0.999,
-        0.5,
-        false,
-        &mut rng,
-    );
+    let result = qlearning(&mut policy, &mut env, 10000, 40, 1.0, 0.5, false, &mut rng);
     println!("{:^20?}", policy.q);
 
     policy.epsilon = 0.0;

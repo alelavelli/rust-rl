@@ -86,7 +86,7 @@ where
 }
 
 /// Q-Learning
-/// 
+///
 /// Off-policy TD control algorithm
 /// ## Parameters
 ///
@@ -143,7 +143,9 @@ where
 
             // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * max_a Q(S', a) - Q(S, A) ]
             let q_sa = policy.get_q_value(state, action);
-            let q_max = policy.get_max_q_value(episode_step.state).map_err(LearningError::PolicyStep)?;
+            let q_max = policy
+                .get_max_q_value(episode_step.state)
+                .map_err(LearningError::PolicyStep)?;
             let new_q_value = q_sa + step_size * (episode_step.reward + gamma * q_max - q_sa);
             policy.update_q_entry(state, action, new_q_value);
 
