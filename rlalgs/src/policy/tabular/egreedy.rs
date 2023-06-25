@@ -70,6 +70,10 @@ impl TabularPolicy for EGreedyTabularPolicy {
     fn get_q_value(&self, state: i32, action: i32) -> f32 {
         self.q[[state as usize, action as usize]]
     }
+
+    fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError> {
+        self.q.slice(s![state, ..]).max().map_err(|_| PolicyError::GenericError).copied()
+    }
 }
 
 #[cfg(test)]
