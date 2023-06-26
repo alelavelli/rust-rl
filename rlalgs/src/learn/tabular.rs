@@ -12,10 +12,12 @@ use crate::{policy::tabular::TabularPolicy, EpisodeGenerationError};
 ///
 /// `policy`: policy to use in the environment
 /// `environment`: environment to use
+/// `episode_max_len`: maximum number of steps in the episode
 /// `rng`: random seed
 pub fn generate_tabular_episode<P, E, R>(
     policy: &mut P,
     environment: &mut E,
+    episode_max_len: Option<i32>,
     rng: &mut R,
     render_env: bool,
 ) -> Result<TabularEpisode, EpisodeGenerationError>
@@ -36,10 +38,17 @@ where
     if render_env {
         environment.render();
     }
+    let episode_max_len = if let Some(value) = episode_max_len {
+        value as f64
+    } else {
+        std::f64::INFINITY
+    };
 
+    let mut step_number = 0;
     // loop to generate the episode
     // Monte Carlo only works for terminating environments, hence, we do not need to set maximum episode length
-    while !environment.is_terminal(state) {
+    loop {
+        step_number += 1;
         // get action from policy
         action = policy
             .step(state, rng)
@@ -59,6 +68,10 @@ where
 
         if render_env {
             environment.render();
+        }
+
+        if episode_step.terminated | (step_number as f64 >= episode_max_len) {
+            break;
         }
     }
     Ok(TabularEpisode {

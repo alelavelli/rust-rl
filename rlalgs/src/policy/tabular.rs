@@ -47,4 +47,7 @@ pub trait TabularPolicy {
     ///
     /// max_a { Q(S, a) }
     fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError>;
+
+    /// Return the probability to take action in the state
+    fn action_prob(&self, state: i32, action: i32) -> f32;
 }

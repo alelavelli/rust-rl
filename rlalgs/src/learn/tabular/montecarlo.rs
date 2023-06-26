@@ -38,7 +38,7 @@ where
 
     for _ in 0..episodes {
         // GENERATE EPISODE
-        let episode = generate_tabular_episode(policy, environment, rng, render_env)
+        let episode = generate_tabular_episode(policy, environment, None, rng, render_env)
             .map_err(LearningError::EpisodeGeneration)?;
         let (states, actions, rewards) = (episode.states, episode.actions, episode.rewards);
         // Update Q function

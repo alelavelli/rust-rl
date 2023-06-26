@@ -1,11 +1,10 @@
+use super::TabularPolicy;
 use crate::PolicyError;
 use ndarray::{s, Array, Array2};
 use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
 use rand::Rng;
-
-use super::TabularPolicy;
 
 /// EGreedyTabularPolicy
 ///
@@ -51,12 +50,18 @@ impl TabularPolicy for EGreedyTabularPolicy {
         //   3- create vector of probabilities
         //   4- sample from the distribution
         let q_values = self.q.slice(s![state, ..]);
+        //let first_value: Vec<&f32> = q_values.iter().filter(|x| **x == q_values[0]).collect();
+        //if first_value.len() == q_values.len() {
+        //    let pi = WeightedAliasIndex::new(vec![1; q_values.len()]).map_err(|_| PolicyError::GenericError)?;
+        //    Ok(pi.sample(rng) as i32)
+        //} else {
         let optimal_action: usize = q_values.argmax().map_err(|_| PolicyError::GenericError)?;
         let num_actions = self.q.shape()[1];
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
         probabilities[optimal_action] += 1.0 - self.epsilon;
         let pi = WeightedAliasIndex::new(probabilities).map_err(|_| PolicyError::GenericError)?;
         Ok(pi.sample(rng) as i32)
+        //}
     }
 
     fn set_q(&mut self, q: Array2<f32>) {
@@ -77,6 +82,24 @@ impl TabularPolicy for EGreedyTabularPolicy {
             .max()
             .map_err(|_| PolicyError::GenericError)
             .copied()
+    }
+
+    fn action_prob(&self, state: i32, action: i32) -> f32 {
+        let q_values = self.q.slice(s![state, ..]);
+        //println!("{}", q_values);
+        let optimal_action: usize = q_values
+            .argmax()
+            .map_err(|_| PolicyError::GenericError)
+            .unwrap();
+        //println!("{}", optimal_action);
+        let num_actions = self.q.shape()[1];
+        //println!("{}", num_actions);
+        let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
+        //println!("{:?}", probabilities);
+        probabilities[optimal_action] += 1.0 - self.epsilon;
+        //println!("{:?}", probabilities);
+        //println!("{}", probabilities[action as usize]);
+        probabilities[action as usize]
     }
 }
 
