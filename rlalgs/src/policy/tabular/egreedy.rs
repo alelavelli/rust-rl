@@ -35,6 +35,15 @@ impl EGreedyTabularPolicy {
     }
 }
 
+impl Clone for EGreedyTabularPolicy {
+    fn clone(&self) -> Self {
+        Self {
+            q: self.q.clone(),
+            epsilon: self.epsilon,
+        }
+    }
+}
+
 impl TabularPolicy for EGreedyTabularPolicy {
     fn get_q(&self) -> &Array2<f32> {
         &self.q
@@ -82,6 +91,15 @@ impl TabularPolicy for EGreedyTabularPolicy {
             .max()
             .map_err(|_| PolicyError::GenericError)
             .copied()
+    }
+
+    fn get_best_a(&self, state: i32) -> Result<i32, PolicyError> {
+        let optimal_action: usize = self
+            .q
+            .slice(s![state, ..])
+            .argmax()
+            .map_err(|_| PolicyError::GenericError)?;
+        Ok(optimal_action as i32)
     }
 
     fn action_prob(&self, state: i32, action: i32) -> f32 {
