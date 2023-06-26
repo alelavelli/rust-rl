@@ -7,17 +7,18 @@ use crate::{
     learn::tabular::generate_tabular_episode, learn::LearningError, policy::tabular::TabularPolicy,
 };
 
-/// Monte Carlo on-policy
+/// Monte Carlo on-policy, update rule
+/// $$ Q(S_t, A_t) \leftarrow \sum_n^N Returns(S_t, A_t) $$
 ///
 /// ## Parameters
 ///
-/// `policy`: TabularPolicy to learn
-/// `environment`: TabularEnvironment
-/// `episodes`: number of episodes to generate
-/// `gamma`: discount factor
-/// `first_visit_mode`: if true it is montecarlo first-visit
-/// `render_env`: if true render the environment during the learning
-/// `rng`: random generator
+/// -`policy`: TabularPolicy to learn
+/// - `environment`: TabularEnvironment
+/// - `episodes`: number of episodes to generate
+/// - `gamma`: discount factor
+/// - `first_visit_mode`: if true it is montecarlo first-visit
+/// - `render_env`: if true render the environment during the learning
+/// - `rng`: random generator
 pub fn montecarlo<P, E, R>(
     policy: &mut P,
     environment: &mut E,

@@ -4,19 +4,20 @@ use rlenv::tabular::TabularEnvironment;
 
 use crate::{learn::LearningError, policy::tabular::TabularPolicy};
 
-/// Sarsa: on-policy TD
+/// Sarsa: on-policy TD, update rule:
+/// $$ Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha \left[ R + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t) \right] $$
 ///
 /// ## Parameters
 ///
-/// `policy`: TabularPolicy to learn
-/// `environment`: TabularEnvironment
-/// `episodes`: number of episodes to generate
-/// `episode_max_len`: maximum length of an episode
-/// `gamma`: discount factor
-/// `step_size`: step size for q update
-/// `expected`: true to use expected sarsa instead of standard sarsa learning algorithm
-/// `render_env`: if true render the environment during the learning
-/// `rng`: random generator
+/// - `policy`: TabularPolicy to learn
+/// - `environment`: TabularEnvironment
+/// - `episodes`: number of episodes to generate
+/// - `episode_max_len`: maximum length of an episode
+/// - `gamma`: discount factor
+/// - `step_size`: step size for q update
+/// - `expected`: true to use expected sarsa instead of standard sarsa learning algorithm
+/// - `render_env`: if true render the environment during the learning
+/// - `rng`: random generator
 ///
 ///
 /// ## Expected Sarsa
@@ -24,6 +25,9 @@ use crate::{learn::LearningError, policy::tabular::TabularPolicy};
 /// Expected Sarsa is a off-policy learning algorithm similar to Q-learning that instead
 /// of taking the maximum over next state-acation pair it uses the expected value, taking
 /// into account how likely each action is under the current policy
+/// $$ Q(S, A) \leftarrow Q(S_t, A_t) + \alpha \left[ R + \gamma \sum_a \pi(a | S_{t+1}) Q(S_{t+1}, a) - Q(S_t, A_t) \right] $$
+/// 
+/// 
 #[allow(clippy::too_many_arguments)]
 pub fn sarsa<P, E, R>(
     policy: &mut P,
@@ -60,7 +64,6 @@ where
         // loop until is S is terminal
         loop {
             step_number += 1;
-            //println!("{}: {} -> {}", step_number, state, action);
             // take action A and observer R and S'
             let episode_step = environment
                 .step(action, rng)
@@ -111,8 +114,6 @@ where
             }
 
             if episode_step.terminated | (step_number >= episode_max_len) {
-                //println!("steps {step_number}");
-                //println!();
                 break;
             }
         }
@@ -120,17 +121,18 @@ where
     Ok(())
 }
 
-/// Q-Learning
+/// Q-Learning, update rule
+/// $$ Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha \left[ R + \gamma \max_a Q(S_{t+1}, a) - Q(S_t, A_t) \right] $$
 ///
 /// Off-policy TD control algorithm
 /// ## Parameters
 ///
-/// `policy`: TabularPolicy to learn
-/// `environment`: TabularEnvironment
-/// `episodes`: number of episodes to generate
-/// `episode_max_len`: maximum length of an episode
-/// `gamma`: discount factor
-/// `step_size`: step size for q update
+/// - `policy`: TabularPolicy to learn
+/// - `environment`: TabularEnvironment
+/// - `episodes`: number of episodes to generate
+/// - `episode_max_len`: maximum length of an episode
+/// - `gamma`: discount factor
+/// - `step_size`: step size for q update
 ///
 /// ## Returns
 ///
