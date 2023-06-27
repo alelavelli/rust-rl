@@ -1,4 +1,5 @@
 pub mod montecarlo;
+pub mod n_steps;
 pub mod temporal_difference;
 
 use rand::Rng;

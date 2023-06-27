@@ -1,12 +1,8 @@
-use std::ops::Div;
-
-use ndarray::{array, s, ArrayView, Ix1};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::temporal_difference::{double_qlearning, sarsa};
+use rlalgs::learn::tabular::n_steps::n_step_sarsa;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
-use rlalgs::policy::tabular::TabularPolicy;
 use rlenv::tabular::cliff_walking::CliffWalking;
 use rlenv::tabular::TabularEnvironment;
 
@@ -21,7 +17,16 @@ fn main() {
         0.1,
         true,
     );
-    let result = double_qlearning(&mut policy, &mut env, 500, 50000, 1.0, 0.5, false, &mut rng);
+    let result = n_step_sarsa(
+        &mut policy, 
+        &mut env,
+        500, 
+        20, 
+        1.0, 
+        0.5, 
+        false, 
+        &mut rng
+        );
     println!("{:^20?}", policy.q);
 
     policy.epsilon = 0.0;
@@ -34,12 +39,4 @@ fn main() {
     );
     println!("{:?}", episode);
     assert!(result.is_ok());
-
-    // update q entry using weighted q value
-    let a_probs = array![0.2, 0.4, 0.1, 0.0];
-    println!("{}", a_probs);
-    let q_row: ArrayView<_, Ix1> = policy.get_q().slice(s![0, ..]);
-    let q_expected = q_row.dot(&a_probs).div(4.0);
-    println!("{}", q_row);
-    println!("{}", q_expected);
 }

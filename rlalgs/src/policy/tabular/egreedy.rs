@@ -5,6 +5,7 @@ use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
 use rand::Rng;
+use rand::seq::IteratorRandom;
 
 /// EGreedyTabularPolicy
 ///
@@ -59,18 +60,23 @@ impl TabularPolicy for EGreedyTabularPolicy {
         //   3- create vector of probabilities
         //   4- sample from the distribution
         let q_values = self.q.slice(s![state, ..]);
-        //let first_value: Vec<&f32> = q_values.iter().filter(|x| **x == q_values[0]).collect();
-        //if first_value.len() == q_values.len() {
-        //    let pi = WeightedAliasIndex::new(vec![1; q_values.len()]).map_err(|_| PolicyError::GenericError)?;
-        //    Ok(pi.sample(rng) as i32)
-        //} else {
-        let optimal_action: usize = q_values.argmax().map_err(|_| PolicyError::GenericError)?;
+
+        // if there are multiple best actions then we take one of them randomly
+        let max_value = q_values.max().unwrap();
+        let mut best_actions: Vec<usize> = Vec::new();
+        let n_actions = q_values.len();
+        for i in 0..n_actions {
+            if q_values[i] == *max_value {
+                best_actions.push(i);
+            }
+        }
+        let optimal_action: usize = *best_actions.iter().choose(rng).unwrap();
+
         let num_actions = self.q.shape()[1];
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
         probabilities[optimal_action] += 1.0 - self.epsilon;
         let pi = WeightedAliasIndex::new(probabilities).map_err(|_| PolicyError::GenericError)?;
         Ok(pi.sample(rng) as i32)
-        //}
     }
 
     fn set_q(&mut self, q: Array2<f32>) {
