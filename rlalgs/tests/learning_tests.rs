@@ -250,6 +250,7 @@ fn n_step_sarsa_cliff_walking() {
         1.0,
         0.5,
         false,
+        false,
         &mut rng,
     );
     assert!(result.is_ok());
@@ -268,7 +269,53 @@ fn n_step_sarsa_cliff_walking() {
     assert_eq!(
         episode.rewards,
         vec![
-            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0
+            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+            -1.0, -1.0, 0.0
+        ]
+    );
+}
+
+#[test]
+fn n_step_expected_sarsa_cliff_walking() {
+    let mut rng = StdRng::seed_from_u64(222);
+    let mut env = CliffWalking::new();
+    env.reset();
+
+    let mut policy = EGreedyTabularPolicy::new(
+        env.get_number_states() as usize,
+        env.get_number_actions() as usize,
+        0.1,
+        true,
+    );
+    let result = n_step_sarsa(
+        &mut policy,
+        &mut env,
+        500,
+        20,
+        1.0,
+        0.5,
+        true,
+        false,
+        &mut rng,
+    );
+    assert!(result.is_ok());
+    policy.epsilon = 0.0;
+    let episode =
+        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
+            .unwrap();
+    assert_eq!(
+        episode.states,
+        vec![30, 20, 21, 11, 1, 2, 3, 13, 14, 4, 5, 6, 7, 8, 9, 19, 29]
+    );
+    assert_eq!(
+        episode.actions,
+        vec![3, 2, 3, 3, 2, 2, 1, 2, 3, 2, 2, 2, 2, 2, 1, 1, 1]
+    );
+    assert_eq!(
+        episode.rewards,
+        vec![
+            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+            -1.0, -1.0, 0.0
         ]
     );
 }

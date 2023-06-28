@@ -18,6 +18,7 @@ use crate::{learn::LearningError, policy::tabular::TabularPolicy};
 /// - `n`: number of steps for the update rule
 /// - `gamma`: discount factor
 /// - `step_size`: step size for q update
+/// - `expected`: true to use expected sarsa
 /// - `render_env`: if true render the environment during the learning
 /// - `rng`: random generator
 #[allow(clippy::too_many_arguments)]
@@ -28,6 +29,7 @@ pub fn n_step_sarsa<P, E, R>(
     n: i32,
     gamma: f32,
     step_size: f32,
+    expected: bool,
     render_env: bool,
     rng: &mut R,
 ) -> Result<(), LearningError>
@@ -91,17 +93,21 @@ where
                     return_g += gamma.pow(i - tau as i32 - 1) * rewards[(i - 1) as usize];
                 }
                 if tau + n < capital_t {
-                    return_g += gamma.pow(n)
-                        * policy.get_q_value(
-                            states[(tau + n) as usize],
-                            actions[(tau + n) as usize],
-                        );
+                    if expected {
+                        return_g +=
+                            gamma.pow(n) * policy.expected_q_value(states[(tau + n) as usize]);
+                    } else {
+                        return_g += gamma.pow(n)
+                            * policy.get_q_value(
+                                states[(tau + n) as usize],
+                                actions[(tau + n) as usize],
+                            );
+                    }
                 }
                 // update policy q at states and actions at time tau
                 let q_sa_tau = policy.get_q_value(states[tau as usize], actions[tau as usize]);
                 let new_q_value = q_sa_tau + step_size * (return_g - q_sa_tau);
                 policy.update_q_entry(states[tau as usize], actions[tau as usize], new_q_value);
-                
             }
 
             if render_env {

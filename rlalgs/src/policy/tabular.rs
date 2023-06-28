@@ -53,4 +53,7 @@ pub trait TabularPolicy {
 
     /// Return the probability to take action in the state
     fn action_prob(&self, state: i32, action: i32) -> f32;
+
+    /// Return expected value for a state
+    fn expected_q_value(&self, state: i32) -> f32;
 }

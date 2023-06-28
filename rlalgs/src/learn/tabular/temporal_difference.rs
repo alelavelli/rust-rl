@@ -1,4 +1,3 @@
-use ndarray::{s, Array1};
 use rand::Rng;
 use rand_distr::Distribution;
 use rlenv::tabular::TabularEnvironment;
@@ -73,16 +72,7 @@ where
             let q_sa = policy.get_q_value(state, action);
 
             if expected {
-                // update q entry using weighted q value
-                let a_probs = Array1::from(
-                    (0..environment.get_number_actions())
-                        .map(|i| policy.action_prob(episode_step.state, i))
-                        .collect::<Vec<f32>>(),
-                );
-                let q_expected: f32 = policy
-                    .get_q()
-                    .slice(s![episode_step.state, ..])
-                    .dot(&a_probs);
+                let q_expected = policy.expected_q_value(episode_step.state);
 
                 let new_q_value =
                     q_sa + step_size * (episode_step.reward + gamma * q_expected - q_sa);

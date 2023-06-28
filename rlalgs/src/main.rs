@@ -18,15 +18,16 @@ fn main() {
         true,
     );
     let result = n_step_sarsa(
-        &mut policy, 
+        &mut policy,
         &mut env,
-        500, 
-        20, 
-        1.0, 
-        0.5, 
-        false, 
-        &mut rng
-        );
+        500,
+        20,
+        1.0,
+        0.5,
+        true,
+        false,
+        &mut rng,
+    );
     println!("{:^20?}", policy.q);
 
     policy.epsilon = 0.0;

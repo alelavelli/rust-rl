@@ -1,11 +1,11 @@
 use super::TabularPolicy;
 use crate::PolicyError;
-use ndarray::{s, Array, Array2};
+use ndarray::{s, Array, Array1, Array2};
 use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
-use rand::Rng;
 use rand::seq::IteratorRandom;
+use rand::Rng;
 
 /// EGreedyTabularPolicy
 ///
@@ -110,20 +110,24 @@ impl TabularPolicy for EGreedyTabularPolicy {
 
     fn action_prob(&self, state: i32, action: i32) -> f32 {
         let q_values = self.q.slice(s![state, ..]);
-        //println!("{}", q_values);
         let optimal_action: usize = q_values
             .argmax()
             .map_err(|_| PolicyError::GenericError)
             .unwrap();
-        //println!("{}", optimal_action);
         let num_actions = self.q.shape()[1];
-        //println!("{}", num_actions);
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
-        //println!("{:?}", probabilities);
         probabilities[optimal_action] += 1.0 - self.epsilon;
-        //println!("{:?}", probabilities);
-        //println!("{}", probabilities[action as usize]);
         probabilities[action as usize]
+    }
+
+    fn expected_q_value(&self, state: i32) -> f32 {
+        // update q entry using weighted q value
+        let a_probs = Array1::from(
+            (0..self.q.dim().1)
+                .map(|i| self.action_prob(state, i as i32))
+                .collect::<Vec<f32>>(),
+        );
+        self.q.slice(s![state, ..]).dot(&a_probs)
     }
 }
 
