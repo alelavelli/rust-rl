@@ -152,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn egreede_policy_step() {
+    fn egreedy_policy_step() {
         let n_states = 2;
         let n_actions = 3;
         let epsilon = 0.8;
