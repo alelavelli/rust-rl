@@ -1,9 +1,12 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rlalgs::learn::tabular::double_qlearning;
 use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::montecarlo::montecarlo;
-use rlalgs::learn::tabular::n_steps::n_step_sarsa;
-use rlalgs::learn::tabular::temporal_difference::{double_qlearning, qlearning, sarsa};
+use rlalgs::learn::tabular::montecarlo;
+use rlalgs::learn::tabular::n_steps_sarsa;
+use rlalgs::learn::tabular::qlearning;
+use rlalgs::learn::tabular::sarsa;
+use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlenv::tabular::cliff_walking::CliffWalking;
 use rlenv::tabular::frozen::FrozenLake;
@@ -20,11 +23,23 @@ fn montecarlo_egreedy_frozen() {
         0.8,
         false,
     );
-    let result = montecarlo(&mut policy, &mut env, 10000, 0.999, false, false, &mut rng);
+    let params = montecarlo::Params {
+        episodes: 10000,
+        gamma: 0.999,
+        first_visit_mode: false,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = montecarlo::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
     assert!(result.is_ok());
 
-    policy.epsilon = 0.0;
-    let episode = generate_tabular_episode(&mut policy, &mut env, None, &mut rng, false).unwrap();
+    policy.set_epsilon(0.0);
+    let episode =
+        generate_tabular_episode(&mut policy, &mut env, None, &mut rng, false, None).unwrap();
     assert_eq!(episode.states, vec![0, 4, 8, 9, 13, 14]);
     assert_eq!(episode.actions, vec![1, 1, 2, 1, 2, 2]);
     assert_eq!(episode.rewards, vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
@@ -42,35 +57,44 @@ fn sarsa_windy_girdworld() {
         0.1,
         true,
     );
-    let result = sarsa(
+
+    let params = sarsa::Params {
+        episodes: 500,
+        episode_max_len: 100,
+        gamma: 0.999,
+        step_size: 0.5,
+        expected: false,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
-        10000,
-        40,
-        0.999,
-        0.5,
-        false,
-        false,
-        &mut rng,
-    );
-    assert!(result.is_ok());
-    policy.epsilon = 0.0;
-    let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
-            .unwrap();
+        None,
+        &mut rand::thread_rng(),
+        true,
+        None,
+    )
+    .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 31, 32, 33, 24, 15, 5, 6, 7, 8, 9, 19, 29, 39, 49, 48]
+        vec![30, 31, 32, 33, 24, 15, 6, 7, 8, 9, 19, 29, 39, 49, 48]
     );
     assert_eq!(
         episode.actions,
-        vec![2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0]
+        vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0]
     );
     assert_eq!(
         episode.rewards,
         vec![
-            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-            -1.0, 0.0
+            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0
         ]
     );
 }
@@ -87,22 +111,32 @@ fn sarsa_cliff_walking() {
         0.1,
         true,
     );
-    let result = sarsa(
+
+    let params = sarsa::Params {
+        episodes: 500,
+        episode_max_len: 5000,
+        gamma: 1.0,
+        step_size: 0.5,
+        expected: false,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
-        500,
-        5000,
-        1.0,
-        0.5,
+        None,
+        &mut rand::thread_rng(),
         false,
-        false,
-        &mut rng,
-    );
-    assert!(result.is_ok());
-    policy.epsilon = 0.0;
-    let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
-            .unwrap();
+        None,
+    )
+    .unwrap();
     assert_eq!(
         episode.states,
         vec![30, 20, 10, 0, 1, 2, 3, 4, 5, 6, 7, 17, 18, 28, 29]
@@ -132,12 +166,31 @@ fn qlearning_cliff_walking() {
         0.1,
         true,
     );
-    let result = qlearning(&mut policy, &mut env, 500, 5000, 1.0, 0.5, false, &mut rng);
+
+    let params = qlearning::Params {
+        episodes: 500,
+        episode_max_len: 5000,
+        gamma: 1.0,
+        step_size: 0.5,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = qlearning::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
     assert!(result.is_ok());
-    policy.epsilon = 0.0;
-    let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
-            .unwrap();
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
+        &mut policy,
+        &mut env,
+        None,
+        &mut rand::thread_rng(),
+        false,
+        None,
+    )
+    .unwrap();
     assert_eq!(
         episode.states,
         vec![30, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
@@ -161,25 +214,30 @@ fn expected_sarsa_cliff_walking() {
         0.1,
         true,
     );
-    let result = sarsa(
-        &mut policy,
-        &mut env,
-        500,
-        50000,
-        1.0,
-        0.5,
-        true,
-        false,
-        &mut rng,
-    );
 
-    policy.epsilon = 0.0;
+    let params = sarsa::Params {
+        episodes: 500,
+        episode_max_len: 5000,
+        gamma: 1.0,
+        step_size: 0.5,
+        expected: true,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+
+    policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
         Some(50),
         &mut rand::thread_rng(),
         true,
+        None,
     )
     .unwrap();
 
@@ -200,7 +258,6 @@ fn double_qlearning_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
     let mut env = CliffWalking::new();
     env.reset();
-    env.render();
 
     let mut policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
@@ -208,12 +265,31 @@ fn double_qlearning_cliff_walking() {
         0.1,
         true,
     );
-    let result = double_qlearning(&mut policy, &mut env, 500, 5000, 1.0, 0.5, false, &mut rng);
+
+    let params = double_qlearning::Params {
+        episodes: 500,
+        episode_max_len: 5000,
+        gamma: 1.0,
+        step_size: 0.5,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = double_qlearning::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
     assert!(result.is_ok());
-    policy.epsilon = 0.0;
-    let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
-            .unwrap();
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
+        &mut policy,
+        &mut env,
+        None,
+        &mut rand::thread_rng(),
+        false,
+        None,
+    )
+    .unwrap();
     assert_eq!(
         episode.states,
         vec![30, 20, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 19, 29]
@@ -242,22 +318,32 @@ fn n_step_sarsa_cliff_walking() {
         0.1,
         true,
     );
-    let result = n_step_sarsa(
+
+    let params = n_steps_sarsa::Params {
+        episodes: 500,
+        n: 20,
+        gamma: 1.0,
+        step_size: 0.5,
+        expected: false,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = n_steps_sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
-        500,
-        20,
-        1.0,
-        0.5,
+        None,
+        &mut rand::thread_rng(),
         false,
-        false,
-        &mut rng,
-    );
-    assert!(result.is_ok());
-    policy.epsilon = 0.0;
-    let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
-            .unwrap();
+        None,
+    )
+    .unwrap();
     assert_eq!(
         episode.states,
         vec![30, 20, 10, 11, 21, 22, 12, 13, 3, 4, 5, 6, 7, 8, 9, 19, 29]
@@ -287,22 +373,32 @@ fn n_step_expected_sarsa_cliff_walking() {
         0.1,
         true,
     );
-    let result = n_step_sarsa(
+
+    let params = n_steps_sarsa::Params {
+        episodes: 500,
+        n: 20,
+        gamma: 1.0,
+        step_size: 0.5,
+        expected: true,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = n_steps_sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
-        500,
-        20,
-        1.0,
-        0.5,
-        true,
+        None,
+        &mut rand::thread_rng(),
         false,
-        &mut rng,
-    );
-    assert!(result.is_ok());
-    policy.epsilon = 0.0;
-    let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rand::thread_rng(), false)
-            .unwrap();
+        None,
+    )
+    .unwrap();
     assert_eq!(
         episode.states,
         vec![30, 20, 21, 11, 1, 2, 3, 13, 14, 4, 5, 6, 7, 8, 9, 19, 29]

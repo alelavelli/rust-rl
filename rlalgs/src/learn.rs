@@ -30,3 +30,13 @@ impl Debug for LearningError {
         Ok(())
     }
 }
+
+/// This struct contains parameters for learning algorithms that define
+/// verbosity configurations. According to them different level of progress
+/// will be shown to the console
+pub struct VerbosityConfig {
+    // true to render the environment during learning
+    pub render_env: bool,
+    // true to show progress bar at episode level
+    pub episode_progress: bool,
+}

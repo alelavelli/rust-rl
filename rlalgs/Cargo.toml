@@ -19,3 +19,4 @@ rand = { workspace = true }
 colored = { workspace = true }
 rand_distr = { workspace = true }
 itertools = { workspace = true }
+indicatif = "0.17.3"

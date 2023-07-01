@@ -1,7 +1,12 @@
+pub mod double_qlearning;
 pub mod montecarlo;
-pub mod n_steps;
-pub mod temporal_difference;
+pub mod n_steps_sarsa;
+pub mod qlearning;
+pub mod sarsa;
 
+use std::borrow::BorrowMut;
+
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rand::Rng;
 use rlenv::tabular::{TabularEnvironment, TabularEpisode};
 
@@ -21,6 +26,7 @@ pub fn generate_tabular_episode<P, E, R>(
     episode_max_len: Option<i32>,
     rng: &mut R,
     render_env: bool,
+    progress_bar: Option<&MultiProgress>,
 ) -> Result<TabularEpisode, EpisodeGenerationError>
 where
     P: TabularPolicy,
@@ -45,6 +51,32 @@ where
         std::f64::INFINITY
     };
 
+    // If multiprogress bar is provided, then we create the spinner which
+    // indicates the progression of the episode
+    let mut opt_spinner: Option<ProgressBar> = None;
+    if progress_bar.is_some() {
+        let mut spinner = ProgressBar::new_spinner();
+        spinner.enable_steady_tick(std::time::Duration::from_secs(1));
+        spinner.set_style(
+            ProgressStyle::default_spinner()
+                .tick_strings(&[
+                    "▹▹▹▹▹",
+                    "▸▹▹▹▹",
+                    "▹▸▹▹▹",
+                    "▹▹▸▹▹",
+                    "▹▹▹▸▹",
+                    "▹▹▹▹▸",
+                    "▪▪▪▪▪",
+                ])
+                .template("{spinner:.blue} {msg}")
+                .unwrap(),
+        );
+        spinner = progress_bar.as_ref().unwrap().add(spinner);
+        opt_spinner = Some(spinner);
+    }
+    if let Some(spinner) = opt_spinner.borrow_mut() {
+        spinner.set_message("Starting Episode");
+    }
     let mut step_number = 0;
     // loop to generate the episode
     // Monte Carlo only works for terminating environments, hence, we do not need to set maximum episode length
@@ -74,6 +106,9 @@ where
         if episode_step.terminated | (step_number as f64 >= episode_max_len) {
             break;
         }
+    }
+    if let Some(spinner) = opt_spinner.borrow_mut() {
+        spinner.finish_with_message("episode done");
     }
     Ok(TabularEpisode {
         states,

@@ -13,8 +13,8 @@ use rand::Rng;
 /// that maximize it
 pub struct EGreedyTabularPolicy {
     // first dimension are the states and the second dimensio are the actions
-    pub q: Array2<f32>,
-    pub epsilon: f32,
+    q: Array2<f32>,
+    epsilon: f32,
 }
 
 impl EGreedyTabularPolicy {
@@ -33,6 +33,10 @@ impl EGreedyTabularPolicy {
             },
             epsilon,
         }
+    }
+
+    pub fn set_epsilon(&mut self, epsilon: f32) {
+        self.epsilon = epsilon;
     }
 }
 

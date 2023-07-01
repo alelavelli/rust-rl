@@ -1,9 +1,28 @@
+use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
 use rand::Rng;
 use rand_distr::num_traits::Pow;
 use rlenv::tabular::TabularEnvironment;
 use std::cmp::min;
 
-use crate::{learn::LearningError, policy::tabular::TabularPolicy};
+use crate::{
+    learn::{LearningError, VerbosityConfig},
+    policy::tabular::TabularPolicy,
+};
+
+/// Parameters for sarsa learning algorithm
+///
+/// `episodes`: number of episodes to generate during learning
+/// `gamma`: discount factor
+/// `step_size`: step size of the update rule
+/// `expeced`: true to use expected sarsa instead of standard one
+/// `n`: number of steps before compute the update
+pub struct Params {
+    pub episodes: i32,
+    pub gamma: f32,
+    pub step_size: f32,
+    pub expected: bool,
+    pub n: i32,
+}
 
 /// N-step Sarsa,
 /// $$ G_{t:t+n} = R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^{n-1} R_{t+n} + \gamma^n Q_{t+n-1}(S_{t+n}, A_{t+n}), n \ge 1, 0 \le t \le T - n $$ update rule:
@@ -13,35 +32,28 @@ use crate::{learn::LearningError, policy::tabular::TabularPolicy};
 ///
 /// - `policy`: TabularPolicy to learn
 /// - `environment`: TabularEnvironment
-/// - `episodes`: number of episodes to generate
-/// - `episode_max_len`: maximum length of an episode
-/// - `n`: number of steps for the update rule
-/// - `gamma`: discount factor
-/// - `step_size`: step size for q update
-/// - `expected`: true to use expected sarsa
-/// - `render_env`: if true render the environment during the learning
+/// - `params`: algorithm parameters
 /// - `rng`: random generator
+/// - `verbosity`: verbosity configuration
 #[allow(clippy::too_many_arguments)]
-pub fn n_step_sarsa<P, E, R>(
+pub fn learn<P, E, R>(
     policy: &mut P,
     environment: &mut E,
-    episodes: i32,
-    n: i32,
-    gamma: f32,
-    step_size: f32,
-    expected: bool,
-    render_env: bool,
+    params: &Params,
     rng: &mut R,
+    versbosity: &VerbosityConfig,
 ) -> Result<(), LearningError>
 where
     P: TabularPolicy,
     E: TabularEnvironment,
     R: Rng + ?Sized,
 {
-    let n = n as f32;
+    let n = params.n as f32;
 
-    // loop for each episode
-    for _ in 0..episodes {
+    let multiprogress_bar = MultiProgress::new();
+    let progress_bar = multiprogress_bar.add(ProgressBar::new(params.episodes as u64));
+
+    for _ in (0..params.episodes).progress_with(progress_bar) {
         let mut states: Vec<i32> = Vec::new();
         let mut actions: Vec<i32> = Vec::new();
         let mut rewards: Vec<f32> = Vec::new();
@@ -50,7 +62,7 @@ where
         let state = environment.reset();
         states.push(state);
 
-        if render_env {
+        if versbosity.render_env {
             environment.render();
         }
 
@@ -90,14 +102,14 @@ where
                 for i in (tau as i32 + 1)..=min((tau + n) as i32, capital_t as i32) {
                     // we access to rewards with index (i - 1) because the reward at step 0 is missing
                     // therefore, position 0 contains reward of step 1
-                    return_g += gamma.pow(i - tau as i32 - 1) * rewards[(i - 1) as usize];
+                    return_g += params.gamma.pow(i - tau as i32 - 1) * rewards[(i - 1) as usize];
                 }
                 if tau + n < capital_t {
-                    if expected {
-                        return_g +=
-                            gamma.pow(n) * policy.expected_q_value(states[(tau + n) as usize]);
+                    if params.expected {
+                        return_g += params.gamma.pow(n)
+                            * policy.expected_q_value(states[(tau + n) as usize]);
                     } else {
-                        return_g += gamma.pow(n)
+                        return_g += params.gamma.pow(n)
                             * policy.get_q_value(
                                 states[(tau + n) as usize],
                                 actions[(tau + n) as usize],
@@ -106,11 +118,11 @@ where
                 }
                 // update policy q at states and actions at time tau
                 let q_sa_tau = policy.get_q_value(states[tau as usize], actions[tau as usize]);
-                let new_q_value = q_sa_tau + step_size * (return_g - q_sa_tau);
+                let new_q_value = q_sa_tau + params.step_size * (return_g - q_sa_tau);
                 policy.update_q_entry(states[tau as usize], actions[tau as usize], new_q_value);
             }
 
-            if render_env {
+            if versbosity.render_env {
                 environment.render();
             }
 

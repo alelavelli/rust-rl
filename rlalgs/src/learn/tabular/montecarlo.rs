@@ -1,11 +1,25 @@
 use std::collections::HashMap;
 
+use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
 use rand::Rng;
 use rlenv::tabular::TabularEnvironment;
 
 use crate::{
-    learn::tabular::generate_tabular_episode, learn::LearningError, policy::tabular::TabularPolicy,
+    learn::LearningError,
+    learn::{tabular::generate_tabular_episode, VerbosityConfig},
+    policy::tabular::TabularPolicy,
 };
+
+/// Parameters for montecarlo learning algorithm
+///
+/// - `episodes`: number of episode to generate during learning
+/// - `gamma`: discount factor
+/// - `first_visit_mode`: true to apply MonteCarlo First visit
+pub struct Params {
+    pub episodes: i32,
+    pub gamma: f32,
+    pub first_visit_mode: bool,
+}
 
 /// Monte Carlo on-policy, update rule
 /// $$ Q(S_t, A_t) \leftarrow \sum_n^N Returns(S_t, A_t) $$
@@ -14,19 +28,15 @@ use crate::{
 ///
 /// -`policy`: TabularPolicy to learn
 /// - `environment`: TabularEnvironment
-/// - `episodes`: number of episodes to generate
-/// - `gamma`: discount factor
-/// - `first_visit_mode`: if true it is montecarlo first-visit
-/// - `render_env`: if true render the environment during the learning
+/// - `params`: struct with parameter for the learning
 /// - `rng`: random generator
-pub fn montecarlo<P, E, R>(
+/// - `verbosity`: verbosity configs
+pub fn learn<P, E, R>(
     policy: &mut P,
     environment: &mut E,
-    episodes: i32,
-    gamma: f32,
-    first_visit_mode: bool,
-    render_env: bool,
+    params: &Params,
     rng: &mut R,
+    versbosity: &VerbosityConfig,
 ) -> Result<(), LearningError>
 where
     P: TabularPolicy,
@@ -34,21 +44,36 @@ where
     R: Rng + ?Sized,
 {
     // initialize variables
-    // TODO: check if there is no entry for the state-action pair. In this case, use entry default to 0.0
     let mut returns: HashMap<(i32, i32), Vec<f32>> = HashMap::new();
 
-    for _ in 0..episodes {
+    let multiprogress_bar = MultiProgress::new();
+    let progress_bar = multiprogress_bar.add(ProgressBar::new(params.episodes as u64));
+
+    for _ in (0..params.episodes).progress_with(progress_bar) {
         // GENERATE EPISODE
-        let episode = generate_tabular_episode(policy, environment, None, rng, render_env)
-            .map_err(LearningError::EpisodeGeneration)?;
+        let episode = generate_tabular_episode(
+            policy,
+            environment,
+            None,
+            rng,
+            versbosity.render_env,
+            if versbosity.episode_progress {
+                Some(&multiprogress_bar)
+            } else {
+                None
+            },
+        )
+        .map_err(LearningError::EpisodeGeneration)?;
         let (states, actions, rewards) = (episode.states, episode.actions, episode.rewards);
         // Update Q function
         let mut g = 0.0;
         for t in (0..states.len()).rev() {
-            g = gamma * g + rewards[t];
+            g = params.gamma * g + rewards[t];
             // If we are in first_visit settings then we check that the pair s,a a time t is the first visit
             // otherwise, we enter always
-            if !first_visit_mode | is_first_visit(states[t], actions[t], &states, &actions, t) {
+            if !params.first_visit_mode
+                | is_first_visit(states[t], actions[t], &states, &actions, t)
+            {
                 let sa_returns = returns.entry((states[t], actions[t])).or_insert(Vec::new());
                 sa_returns.push(g);
                 let new_q_value: f32 = sa_returns.iter().sum::<f32>() / sa_returns.len() as f32;
