@@ -43,12 +43,12 @@ pub struct Params {
 ///
 #[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
-    policy: &mut P,
-    environment: &mut E,
-    params: &Params,
+    mut policy: P,
+    mut environment: E,
+    params: Params,
     rng: &mut R,
     versbosity: &VerbosityConfig,
-) -> Result<(), LearningError>
+) -> Result<P, LearningError>
 where
     P: TabularPolicy,
     E: TabularEnvironment,
@@ -121,5 +121,5 @@ where
             }
         }
     }
-    Ok(())
+    Ok(policy)
 }

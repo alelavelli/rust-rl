@@ -16,15 +16,15 @@ use rlenv::tabular::TabularEnvironment;
 #[test]
 fn montecarlo_egreedy_frozen() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = FrozenLake::new();
-    let mut policy = EGreedyTabularPolicy::new(
+    let env = FrozenLake::new();
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.8,
         false,
     );
     let params = montecarlo::Params {
-        episodes: 10000,
+        episodes: 1000,
         gamma: 0.999,
         first_visit_mode: false,
     };
@@ -34,12 +34,14 @@ fn montecarlo_egreedy_frozen() {
         episode_progress: false,
     };
 
-    let result = montecarlo::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = montecarlo::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
 
     policy.set_epsilon(0.0);
+    let mut env = FrozenLake::new();
     let episode =
-        generate_tabular_episode(&mut policy, &mut env, None, &mut rng, false, None).unwrap();
+        generate_tabular_episode(&mut policy, &mut env, Some(10), &mut rng, true, None).unwrap();
     assert_eq!(episode.states, vec![0, 4, 8, 9, 13, 14]);
     assert_eq!(episode.actions, vec![1, 1, 2, 1, 2, 2]);
     assert_eq!(episode.rewards, vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
@@ -48,10 +50,9 @@ fn montecarlo_egreedy_frozen() {
 #[test]
 fn sarsa_windy_girdworld() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = WindyGridworld::new();
-    env.reset();
+    let env = WindyGridworld::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -71,8 +72,10 @@ fn sarsa_windy_girdworld() {
         episode_progress: false,
     };
 
-    let result = sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = sarsa::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = WindyGridworld::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
@@ -102,10 +105,9 @@ fn sarsa_windy_girdworld() {
 #[test]
 fn sarsa_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
+    let env = CliffWalking::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -125,15 +127,17 @@ fn sarsa_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = sarsa::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
         None,
         &mut rand::thread_rng(),
-        false,
+        true,
         None,
     )
     .unwrap();
@@ -156,11 +160,9 @@ fn sarsa_cliff_walking() {
 #[test]
 fn qlearning_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
-    env.render();
+    let env = CliffWalking::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -179,15 +181,17 @@ fn qlearning_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = qlearning::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = qlearning::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
         None,
         &mut rand::thread_rng(),
-        false,
+        true,
         None,
     )
     .unwrap();
@@ -205,10 +209,9 @@ fn qlearning_cliff_walking() {
 #[test]
 fn expected_sarsa_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
+    let env = CliffWalking::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -228,8 +231,10 @@ fn expected_sarsa_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
-
+    let result = sarsa::learn(policy, env, params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
@@ -241,7 +246,6 @@ fn expected_sarsa_cliff_walking() {
     )
     .unwrap();
 
-    assert!(result.is_ok());
     assert_eq!(
         episode.states,
         vec![30, 20, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 29]
@@ -256,10 +260,9 @@ fn expected_sarsa_cliff_walking() {
 #[test]
 fn double_qlearning_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
+    let env = CliffWalking::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -278,15 +281,17 @@ fn double_qlearning_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = double_qlearning::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = double_qlearning::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
         None,
         &mut rand::thread_rng(),
-        false,
+        true,
         None,
     )
     .unwrap();
@@ -309,10 +314,9 @@ fn double_qlearning_cliff_walking() {
 #[test]
 fn n_step_sarsa_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
+    let env = CliffWalking::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -332,15 +336,17 @@ fn n_step_sarsa_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = n_steps_sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = n_steps_sarsa::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
         None,
         &mut rand::thread_rng(),
-        false,
+        true,
         None,
     )
     .unwrap();
@@ -364,10 +370,9 @@ fn n_step_sarsa_cliff_walking() {
 #[test]
 fn n_step_expected_sarsa_cliff_walking() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
+    let env = CliffWalking::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -387,15 +392,17 @@ fn n_step_expected_sarsa_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = n_steps_sarsa::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = n_steps_sarsa::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(
         &mut policy,
         &mut env,
         None,
         &mut rand::thread_rng(),
-        false,
+        true,
         None,
     )
     .unwrap();

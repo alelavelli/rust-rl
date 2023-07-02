@@ -5,19 +5,18 @@ use rlalgs::learn::tabular::montecarlo;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlalgs::policy::tabular::TabularPolicy;
-use rlenv::tabular::cliff_walking::CliffWalking;
+use rlenv::tabular::frozen::FrozenLake;
 use rlenv::tabular::TabularEnvironment;
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(222);
-    let mut env = CliffWalking::new();
-    env.reset();
+    let env = FrozenLake::new();
 
-    let mut policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
-        true,
+        false,
     );
 
     let verbosity = VerbosityConfig {
@@ -26,12 +25,14 @@ fn main() {
     };
 
     let params = montecarlo::Params {
-        episodes: 500,
+        episodes: 100,
         gamma: 1.0,
         first_visit_mode: false,
     };
 
-    let result = montecarlo::learn(&mut policy, &mut env, &params, &mut rng, &verbosity);
+    let result = montecarlo::learn(policy, env, params, &mut rng, &verbosity);
+    let mut policy = result.unwrap();
+    let mut env = FrozenLake::new();
     println!("{:^20?}", policy.get_q());
 
     policy.set_epsilon(0.0);
@@ -44,5 +45,4 @@ fn main() {
         None,
     );
     println!("{:?}", episode);
-    assert!(result.is_ok());
 }

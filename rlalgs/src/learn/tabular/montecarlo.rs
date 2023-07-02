@@ -32,12 +32,12 @@ pub struct Params {
 /// - `rng`: random generator
 /// - `verbosity`: verbosity configs
 pub fn learn<P, E, R>(
-    policy: &mut P,
-    environment: &mut E,
-    params: &Params,
+    mut policy: P,
+    mut environment: E,
+    params: Params,
     rng: &mut R,
     versbosity: &VerbosityConfig,
-) -> Result<(), LearningError>
+) -> Result<P, LearningError>
 where
     P: TabularPolicy,
     E: TabularEnvironment,
@@ -52,8 +52,8 @@ where
     for _ in (0..params.episodes).progress_with(progress_bar) {
         // GENERATE EPISODE
         let episode = generate_tabular_episode(
-            policy,
-            environment,
+            &mut policy,
+            &mut environment,
             None,
             rng,
             versbosity.render_env,
@@ -81,7 +81,7 @@ where
             }
         }
     }
-    Ok(())
+    Ok(policy)
 }
 
 /// tells if the pair state, action at time t are the first visit in the episode
