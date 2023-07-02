@@ -1,3 +1,5 @@
 /target
 /Cargo.lock
 /reference-material
+
+*/.DS_Store
