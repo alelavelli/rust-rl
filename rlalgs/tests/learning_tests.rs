@@ -3,7 +3,7 @@ use rand::SeedableRng;
 use rlalgs::learn::tabular::double_qlearning;
 use rlalgs::learn::tabular::generate_tabular_episode;
 use rlalgs::learn::tabular::montecarlo;
-use rlalgs::learn::tabular::n_steps_sarsa;
+use rlalgs::learn::tabular::n_step_sarsa;
 use rlalgs::learn::tabular::qlearning;
 use rlalgs::learn::tabular::sarsa;
 use rlalgs::learn::VerbosityConfig;
@@ -323,7 +323,7 @@ fn n_step_sarsa_cliff_walking() {
         true,
     );
 
-    let params = n_steps_sarsa::Params {
+    let params = n_step_sarsa::Params {
         episodes: 500,
         n: 20,
         gamma: 1.0,
@@ -336,7 +336,7 @@ fn n_step_sarsa_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = n_steps_sarsa::learn(policy, env, params, &mut rng, &verbosity);
+    let result = n_step_sarsa::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
@@ -379,7 +379,7 @@ fn n_step_expected_sarsa_cliff_walking() {
         true,
     );
 
-    let params = n_steps_sarsa::Params {
+    let params = n_step_sarsa::Params {
         episodes: 500,
         n: 20,
         gamma: 1.0,
@@ -392,7 +392,7 @@ fn n_step_expected_sarsa_cliff_walking() {
         episode_progress: false,
     };
 
-    let result = n_steps_sarsa::learn(policy, env, params, &mut rng, &verbosity);
+    let result = n_step_sarsa::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();

@@ -9,7 +9,7 @@ use rlenv::tabular::TabularEnvironment;
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(222);
-    
+
     // Create environment
     let env = WindyGridworld::new();
 
@@ -37,7 +37,7 @@ fn main() {
 
     // Learn policy
     let result = sarsa::learn(policy, env, params, &mut rng, &verbosity);
-    
+
     // Make an episode with greedy policy
     let mut env = WindyGridworld::new();
     let mut policy = result.unwrap();

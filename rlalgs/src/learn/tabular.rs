@@ -1,6 +1,6 @@
 pub mod double_qlearning;
 pub mod montecarlo;
-pub mod n_steps_sarsa;
+pub mod n_step_sarsa;
 pub mod qlearning;
 pub mod sarsa;
 
