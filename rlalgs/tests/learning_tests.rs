@@ -4,6 +4,7 @@ use rlalgs::learn::tabular::double_qlearning;
 use rlalgs::learn::tabular::generate_tabular_episode;
 use rlalgs::learn::tabular::montecarlo;
 use rlalgs::learn::tabular::n_step_sarsa;
+use rlalgs::learn::tabular::n_step_tree_backup;
 use rlalgs::learn::tabular::qlearning;
 use rlalgs::learn::tabular::sarsa;
 use rlalgs::learn::VerbosityConfig;
@@ -24,7 +25,7 @@ fn montecarlo_egreedy_frozen() {
         false,
     );
     let params = montecarlo::Params {
-        episodes: 1000,
+        episodes: 2000,
         gamma: 0.999,
         first_visit_mode: false,
     };
@@ -413,6 +414,62 @@ fn n_step_expected_sarsa_cliff_walking() {
     assert_eq!(
         episode.actions,
         vec![3, 2, 3, 3, 2, 2, 1, 2, 3, 2, 2, 2, 2, 2, 1, 1, 1]
+    );
+    assert_eq!(
+        episode.rewards,
+        vec![
+            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+            -1.0, -1.0, 0.0
+        ]
+    );
+}
+
+#[test]
+fn n_step_tree_backup_windy_girdworld() {
+    let mut rng = StdRng::seed_from_u64(222);
+    let env = WindyGridworld::new();
+
+    let policy = EGreedyTabularPolicy::new(
+        env.get_number_states() as usize,
+        env.get_number_actions() as usize,
+        0.1,
+        true,
+    );
+
+    let params = n_step_tree_backup::Params {
+        episodes: 200,
+        gamma: 0.999,
+        step_size: 0.5,
+        expected: false,
+        n: 10,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = n_step_tree_backup::learn(policy, env, params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = WindyGridworld::new();
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
+        &mut policy,
+        &mut env,
+        None,
+        &mut rand::thread_rng(),
+        true,
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        episode.states,
+        vec![30, 31, 21, 22, 23, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39, 49, 48]
+    );
+    assert_eq!(
+        episode.actions,
+        vec![2, 3, 2, 2, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0]
     );
     assert_eq!(
         episode.rewards,

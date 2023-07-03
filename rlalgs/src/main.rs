@@ -1,7 +1,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::sarsa;
+use rlalgs::learn::tabular::n_step_tree_backup;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlenv::tabular::windy_gridworld::WindyGridworld;
@@ -22,12 +22,12 @@ fn main() {
     );
 
     // Define parameters
-    let params = sarsa::Params {
-        episodes: 500,
-        episode_max_len: 100,
+    let params = n_step_tree_backup::Params {
+        episodes: 200,
         gamma: 0.999,
         step_size: 0.5,
         expected: false,
+        n: 10,
     };
 
     let verbosity = VerbosityConfig {
@@ -36,7 +36,7 @@ fn main() {
     };
 
     // Learn policy
-    let result = sarsa::learn(policy, env, params, &mut rng, &verbosity);
+    let result = n_step_tree_backup::learn(policy, env, params, &mut rng, &verbosity);
 
     // Make an episode with greedy policy
     let mut env = WindyGridworld::new();
@@ -50,4 +50,5 @@ fn main() {
         true,
         None,
     );
+    println!("{:?}", episode);
 }

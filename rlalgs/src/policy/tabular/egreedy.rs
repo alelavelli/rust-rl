@@ -184,9 +184,7 @@ mod tests {
             .collect();
 
         let tol = 0.1;
-        println!(" probs {:?}", probs);
-        println!("best {}", best_prob);
-        println!("other {}", other_prob);
+
         assert!((probs[0] - best_prob).abs() < tol);
         assert!((probs[1] - other_prob).abs() < tol);
         assert!((probs[2] - other_prob).abs() < tol);
