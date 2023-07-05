@@ -1,7 +1,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::n_step_tree_backup;
+use rlalgs::learn::tabular::n_step_q_sigma;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlenv::tabular::windy_gridworld::WindyGridworld;
@@ -17,16 +17,29 @@ fn main() {
     let policy = EGreedyTabularPolicy::new(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
-        0.1,
+        0.5,
         true,
     );
 
+    let behaviour = EGreedyTabularPolicy::new(
+        env.get_number_states() as usize,
+        env.get_number_actions() as usize,
+        0.8,
+        false,
+    );
+
+    fn sigma_fn(input: n_step_q_sigma::SigmaInput) -> f32 {
+        (input.step % 2) as f32
+    }
+
     // Define parameters
-    let params = n_step_tree_backup::Params {
-        episodes: 200,
-        gamma: 0.999,
+    let sigma_fn_box = Box::new(sigma_fn);
+    let params = n_step_q_sigma::Params {
+        episodes: 500,
+        gamma: 0.9,
         step_size: 0.5,
-        expected: false,
+        sigma_fn: sigma_fn_box,
+        update_behaviour: true,
         n: 10,
     };
 
@@ -36,7 +49,7 @@ fn main() {
     };
 
     // Learn policy
-    let result = n_step_tree_backup::learn(policy, env, params, &mut rng, &verbosity);
+    let result = n_step_q_sigma::learn(policy, behaviour, env, params, &mut rng, &verbosity);
 
     // Make an episode with greedy policy
     let mut env = WindyGridworld::new();

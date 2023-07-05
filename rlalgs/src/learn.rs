@@ -17,6 +17,9 @@ pub enum LearningError {
     #[error("Failed to generate episode")]
     EpisodeGeneration(#[source] EpisodeGenerationError),
 
+    #[error("Invalid parameters")]
+    InvalidParametersError,
+
     #[error("Failed to learn")]
     GenericError,
 }

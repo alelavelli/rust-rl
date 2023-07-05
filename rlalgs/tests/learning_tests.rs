@@ -3,6 +3,7 @@ use rand::SeedableRng;
 use rlalgs::learn::tabular::double_qlearning;
 use rlalgs::learn::tabular::generate_tabular_episode;
 use rlalgs::learn::tabular::montecarlo;
+use rlalgs::learn::tabular::n_step_q_sigma;
 use rlalgs::learn::tabular::n_step_sarsa;
 use rlalgs::learn::tabular::n_step_tree_backup;
 use rlalgs::learn::tabular::qlearning;
@@ -476,6 +477,77 @@ fn n_step_tree_backup_windy_girdworld() {
         vec![
             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
             -1.0, -1.0, 0.0
+        ]
+    );
+}
+#[test]
+fn n_step_q_sigma_windy_girdworld() {
+    let mut rng = StdRng::seed_from_u64(222);
+
+    // Create environment
+    let env = WindyGridworld::new();
+
+    // Create policy
+    let policy = EGreedyTabularPolicy::new(
+        env.get_number_states() as usize,
+        env.get_number_actions() as usize,
+        0.5,
+        true,
+    );
+
+    let behaviour = EGreedyTabularPolicy::new(
+        env.get_number_states() as usize,
+        env.get_number_actions() as usize,
+        0.8,
+        false,
+    );
+
+    fn sigma_fn(input: n_step_q_sigma::SigmaInput) -> f32 {
+        (input.step % 2) as f32
+    }
+
+    // Define parameters
+    let sigma_fn_box = Box::new(sigma_fn);
+    let params = n_step_q_sigma::Params {
+        episodes: 500,
+        gamma: 0.9,
+        step_size: 0.5,
+        sigma_fn: sigma_fn_box,
+        update_behaviour: true,
+        n: 10,
+    };
+
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        episode_progress: false,
+    };
+
+    let result = n_step_q_sigma::learn(policy, behaviour, env, params, &mut rng, &verbosity);
+    assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = WindyGridworld::new();
+    policy.set_epsilon(0.0);
+    let episode = generate_tabular_episode(
+        &mut policy,
+        &mut env,
+        None,
+        &mut rand::thread_rng(),
+        true,
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        episode.states,
+        vec![30, 31, 32, 33, 24, 15, 6, 7, 8, 9, 19, 29, 39, 49, 48]
+    );
+    assert_eq!(
+        episode.actions,
+        vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0]
+    );
+    assert_eq!(
+        episode.rewards,
+        vec![
+            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0
         ]
     );
 }
