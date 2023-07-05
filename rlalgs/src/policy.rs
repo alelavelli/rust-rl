@@ -1,3 +1,7 @@
+//! Policy modules
+//!
+//! The module contains the implementations of Reinforcement Learning policies
+
 pub mod tabular;
 use std::{error::Error, fmt::Debug};
 

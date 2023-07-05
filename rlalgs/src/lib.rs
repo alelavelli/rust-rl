@@ -7,6 +7,7 @@ use std::{error::Error, fmt::Debug};
 
 pub mod learn;
 pub mod policy;
+pub mod model;
 
 #[derive(thiserror::Error)]
 pub enum EpisodeGenerationError {

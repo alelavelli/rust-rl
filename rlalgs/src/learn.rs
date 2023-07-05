@@ -1,3 +1,7 @@
+//! Learn module
+//!
+//! The module contains the implementations of learning algorithms
+
 use std::{error::Error, fmt::Debug};
 
 use rlenv::EnvironmentError;
