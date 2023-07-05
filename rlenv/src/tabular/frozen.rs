@@ -29,8 +29,8 @@ impl fmt::Display for FrozenLakeStateType {
             f,
             "{}",
             match self {
-                FrozenLakeStateType::Frozen => "F",
-                FrozenLakeStateType::Hole => "H",
+                FrozenLakeStateType::Frozen => "•",
+                FrozenLakeStateType::Hole => "X",
                 FrozenLakeStateType::Start => "S",
                 FrozenLakeStateType::Goal => "G",
             }

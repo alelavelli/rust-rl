@@ -5,6 +5,7 @@ use crate::EnvironmentError;
 pub mod cliff_walking;
 pub mod frozen;
 pub mod windy_gridworld;
+pub mod simple_maze;
 
 /// Trait for Tabular Environments
 ///

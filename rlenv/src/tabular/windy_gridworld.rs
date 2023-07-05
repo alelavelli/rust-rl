@@ -28,7 +28,7 @@ impl fmt::Display for WindyGridworldStateType {
             f,
             "{}",
             match self {
-                WindyGridworldStateType::Normal => "N",
+                WindyGridworldStateType::Normal => "•",
                 WindyGridworldStateType::Start => "S",
                 WindyGridworldStateType::Goal => "G",
             }
