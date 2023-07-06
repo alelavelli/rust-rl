@@ -1,17 +1,17 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use rlalgs::learn::tabular::generate_tabular_episode;
-use rlalgs::learn::tabular::n_step_q_sigma;
+use rlalgs::learn::model_free::tabular::generate_tabular_episode;
+use rlalgs::learn::model_free::tabular::n_step_q_sigma;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
-use rlenv::tabular::windy_gridworld::WindyGridworld;
+use rlenv::tabular::simple_maze::SimpleMaze;
 use rlenv::tabular::TabularEnvironment;
 
 fn main() {
     let mut rng = StdRng::seed_from_u64(222);
 
     // Create environment
-    let env = WindyGridworld::new();
+    let env = SimpleMaze::new();
 
     // Create policy
     let policy = EGreedyTabularPolicy::new(
@@ -52,7 +52,7 @@ fn main() {
     let result = n_step_q_sigma::learn(policy, behaviour, env, params, &mut rng, &verbosity);
 
     // Make an episode with greedy policy
-    let mut env = WindyGridworld::new();
+    let mut env = SimpleMaze::new();
     let mut policy = result.unwrap();
     policy.set_epsilon(0.0);
     let episode = generate_tabular_episode(

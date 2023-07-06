@@ -8,7 +8,9 @@ use rlenv::EnvironmentError;
 
 use crate::{policy::PolicyError, EpisodeGenerationError};
 
-pub mod tabular;
+pub mod architecture;
+pub mod model_free;
+pub mod planning;
 
 #[derive(thiserror::Error)]
 pub enum LearningError {
