@@ -39,6 +39,7 @@ pub trait TabularModel {
     fn update_step(&mut self, state: i32, action: i32, next_state: i32, reward: f32);
 
     /// Sample a state, action pair the model has previously experienced
-    fn sample_sa<R>(&self, rng: &mut R ) -> Option<TabularSampleSA>
-    where R: Rng + ?Sized;
+    fn sample_sa<R>(&self, rng: &mut R) -> Option<TabularSampleSA>
+    where
+        R: Rng + ?Sized;
 }

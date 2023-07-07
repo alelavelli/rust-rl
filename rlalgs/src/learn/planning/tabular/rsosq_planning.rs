@@ -3,7 +3,11 @@
 use indicatif::{ProgressBar, ProgressIterator};
 use rand::Rng;
 
-use crate::{learn::{VerbosityConfig, LearningError}, policy::tabular::TabularPolicy, model::tabular::TabularModel};
+use crate::{
+    learn::{LearningError, VerbosityConfig},
+    model::tabular::TabularModel,
+    policy::tabular::TabularPolicy,
+};
 
 /// Parameters for random-sample one-step tabular q-planning algorithm
 ///
@@ -22,7 +26,7 @@ pub struct Params {
 /// This simple planning tabular algorithm at each iteration samples a state, action pair from
 /// the model and obtains next state and reward. Then uses this information to update
 /// the Q value using Q-Learning update rule.
-/// 
+///
 /// ## Parameters
 ///
 /// - `policy`: TabularPolicy to learn
@@ -43,7 +47,6 @@ where
     M: TabularModel,
     R: Rng + ?Sized,
 {
-    
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 
     for _ in (0..params.n_iterations).progress_with(progress_bar) {
@@ -51,7 +54,7 @@ where
         let (state, action) = if let Some(sa_sample) = model.sample_sa(rng) {
             (sa_sample.state, sa_sample.action)
         } else {
-            return Err(LearningError::ModelError)
+            return Err(LearningError::ModelError);
         };
 
         // 2 get next state and reward
@@ -60,9 +63,10 @@ where
         // 3 appy one-step tabular Q-learning
         let q_sa = policy.get_q_value(state, action);
         let q_max = policy
-                .get_max_q_value(next_step_sample.state)
-                .map_err(LearningError::PolicyStep)?;
-        let new_value = q_sa + params.step_size * ( next_step_sample.reward + params.gamma * q_max - q_sa);
+            .get_max_q_value(next_step_sample.state)
+            .map_err(LearningError::PolicyStep)?;
+        let new_value =
+            q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
         policy.update_q_entry(state, action, new_value);
     }
 

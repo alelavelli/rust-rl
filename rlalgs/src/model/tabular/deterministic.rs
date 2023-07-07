@@ -17,23 +17,15 @@ pub struct DeterministicModel {
     // rows are states and columns are actions
     reward_matrix: Array2<f32>,
     // experienced samples. state, action pairs the model has seen
-    experienced_samples: HashSet<(i32, i32)>
+    experienced_samples: HashSet<(i32, i32)>,
 }
 
 impl DeterministicModel {
-    pub fn new(
-        number_states: usize,
-        number_actions: usize,
-        zero_reward: bool,
-    ) -> DeterministicModel {
+    pub fn new(number_states: usize, number_actions: usize) -> DeterministicModel {
         DeterministicModel {
             transition_matrix: Array::zeros((number_states, number_actions)),
-            reward_matrix: if zero_reward {
-                Array::zeros((number_states, number_actions))
-            } else {
-                Array::zeros((number_states, number_actions))
-            },
-            experienced_samples: HashSet::new()
+            reward_matrix: Array::zeros((number_states, number_actions)),
+            experienced_samples: HashSet::new(),
         }
     }
 }
@@ -56,11 +48,13 @@ impl TabularModel for DeterministicModel {
     where
         R: Rng + ?Sized,
     {
-        if let Some(sample) = self.experienced_samples.iter().choose(rng) {
-            Some(TabularSampleSA { state: sample.0, action: sample.1 })
-        } else {
-            None
-        }
+        self.experienced_samples
+            .iter()
+            .choose(rng)
+            .map(|sample| TabularSampleSA {
+                state: sample.0,
+                action: sample.1,
+            })
     }
 }
 
@@ -74,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let mut model = DeterministicModel::new(5, 2, true);
+        let mut model = DeterministicModel::new(5, 2);
         model.update_step(0, 0, 1, 1.0);
         let step = model.predict_step(0, 0);
         assert_eq!(step.reward, 1.0);
@@ -84,12 +78,12 @@ mod tests {
     #[test]
     fn test_sample() {
         let mut rng = StdRng::seed_from_u64(222);
-        let mut model = DeterministicModel::new(5, 2, true);
-        
+        let mut model = DeterministicModel::new(5, 2);
+
         // the first time we try to sample we get None because the model never seen anything
         let sample = model.sample_sa(&mut rng);
         assert!(sample.is_none());
-        
+
         let s0 = 0;
         let a0 = 0;
         let s0_next = 1;
@@ -125,6 +119,5 @@ mod tests {
             let sample = sample.unwrap();
             assert!(seen_samples.contains(&(sample.state, sample.action)));
         }
-        
     }
 }
