@@ -1,7 +1,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use rlalgs::learn::architecture::tabular::dyna_q;
 use rlalgs::learn::model_free::tabular::generate_tabular_episode;
+use rlalgs::learn::planning::tabular::dyna_q;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::tabular::deterministic::DeterministicModel;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;

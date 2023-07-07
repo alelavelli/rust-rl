@@ -8,7 +8,6 @@ use rlenv::EnvironmentError;
 
 use crate::{policy::PolicyError, EpisodeGenerationError};
 
-pub mod architecture;
 pub mod model_free;
 pub mod planning;
 
