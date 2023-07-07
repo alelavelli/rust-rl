@@ -6,7 +6,7 @@ use rlenv::tabular::TabularEnvironment;
 
 use crate::{
     learn::LearningError,
-    learn::{tabular::generate_tabular_episode, VerbosityConfig},
+    learn::{model_free::tabular::generate_tabular_episode, VerbosityConfig},
     policy::tabular::TabularPolicy,
 };
 
@@ -108,7 +108,7 @@ fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: u
 
 #[cfg(test)]
 mod tests {
-    use crate::learn::tabular::montecarlo::is_first_visit;
+    use crate::learn::model_free::tabular::montecarlo::is_first_visit;
 
     #[test]
     fn test_is_first_visit() {

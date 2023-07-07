@@ -8,7 +8,9 @@ use rlenv::EnvironmentError;
 
 use crate::{policy::PolicyError, EpisodeGenerationError};
 
-pub mod tabular;
+pub mod architecture;
+pub mod model_free;
+pub mod planning;
 
 #[derive(thiserror::Error)]
 pub enum LearningError {
@@ -20,6 +22,9 @@ pub enum LearningError {
 
     #[error("Failed to generate episode")]
     EpisodeGeneration(#[source] EpisodeGenerationError),
+
+    #[error("Failed to use model")]
+    ModelError,
 
     #[error("Invalid parameters")]
     InvalidParametersError,

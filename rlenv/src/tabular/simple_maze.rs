@@ -61,9 +61,9 @@ impl fmt::Display for SimpleMazeStateType {
 ///
 ///   - Reach goal (G): +1
 ///   - Any other step: 0
-/// 
+///
 /// The suggested discount factor gamma is 0.95
-/// 
+///
 pub struct SimpleMaze {
     map_dim: (i32, i32),
     initial_row: i32,
