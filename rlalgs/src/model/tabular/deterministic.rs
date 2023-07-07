@@ -66,6 +66,8 @@ impl TabularModel for DeterministicModel {
 
 #[cfg(test)]
 mod tests {
+    use rand::{rngs::StdRng, SeedableRng};
+
     use crate::model::tabular::TabularModel;
 
     use super::DeterministicModel;
@@ -77,5 +79,52 @@ mod tests {
         let step = model.predict_step(0, 0);
         assert_eq!(step.reward, 1.0);
         assert_eq!(step.state, 1);
+    }
+
+    #[test]
+    fn test_sample() {
+        let mut rng = StdRng::seed_from_u64(222);
+        let mut model = DeterministicModel::new(5, 2, true);
+        
+        // the first time we try to sample we get None because the model never seen anything
+        let sample = model.sample_sa(&mut rng);
+        assert!(sample.is_none());
+        
+        let s0 = 0;
+        let a0 = 0;
+        let s0_next = 1;
+        let r0 = 1.0;
+        model.update_step(s0, a0, s0_next, r0);
+
+        // the second time we should see only the sample we inserted
+        for _ in 0..5 {
+            let sample = model.sample_sa(&mut rng);
+            assert!(sample.is_some());
+            let sample = sample.unwrap();
+            assert_eq!(sample.state, s0);
+            assert_eq!(sample.action, a0);
+        }
+
+        // we add other samples and we check the sampling is correct
+        let s1 = 1;
+        let a1 = 1;
+        let s1_next = 2;
+        let r1 = 2.0;
+        model.update_step(s1, a1, s1_next, r1);
+        let s2 = 2;
+        let a2 = 0;
+        let s2_next = 3;
+        let r2 = 3.0;
+        model.update_step(s2, a2, s2_next, r2);
+
+        let seen_samples = vec![(s0, a0), (s1, a1), (s2, a2)];
+        let mut rng = rand::thread_rng();
+        for _ in 0..5 {
+            let sample = model.sample_sa(&mut rng);
+            assert!(sample.is_some());
+            let sample = sample.unwrap();
+            assert!(seen_samples.contains(&(sample.state, sample.action)));
+        }
+        
     }
 }
