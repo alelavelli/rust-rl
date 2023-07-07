@@ -8,7 +8,8 @@ use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlenv::tabular::simple_maze::SimpleMaze;
 use rlenv::tabular::TabularEnvironment;
 
-fn main() {
+#[test]
+fn dyna_q_test() {
     let mut rng = StdRng::seed_from_u64(222);
 
     // Create environment
@@ -55,6 +56,18 @@ fn main() {
         &mut rand::thread_rng(),
         true,
         None,
+    )
+    .unwrap();
+    assert_eq!(
+        episode.states,
+        vec![18, 27, 36, 37, 38, 39, 30, 31, 32, 33, 34, 35, 26, 17]
     );
-    println!("{:?}", episode);
+    assert_eq!(
+        episode.actions,
+        vec![1, 1, 2, 2, 2, 3, 2, 2, 2, 2, 2, 3, 3, 3]
+    );
+    assert_eq!(
+        episode.rewards,
+        vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    );
 }
