@@ -56,6 +56,10 @@ impl TabularModel for DeterministicModel {
                 action: sample.1,
             })
     }
+
+    fn get_preceding_sa(&self, state: i32) -> Vec<(crate::TabularStateAction)> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

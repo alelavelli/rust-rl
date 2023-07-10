@@ -44,7 +44,7 @@ fn montecarlo_egreedy_frozen() {
     let mut env = FrozenLake::new();
     let episode =
         generate_tabular_episode(&mut policy, &mut env, Some(10), &mut rng, true, None).unwrap();
-    assert_eq!(episode.states, vec![0, 4, 8, 9, 13, 14]);
+    assert_eq!(episode.states, vec![0, 4, 8, 9, 13, 14, 15]);
     assert_eq!(episode.actions, vec![1, 1, 2, 1, 2, 2]);
     assert_eq!(episode.rewards, vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
 }
@@ -90,7 +90,7 @@ fn sarsa_windy_girdworld() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 31, 32, 33, 24, 15, 6, 7, 8, 9, 19, 29, 39, 49, 48]
+        vec![30, 31, 32, 33, 24, 15, 6, 7, 8, 9, 19, 29, 39, 49, 48, 37]
     );
     assert_eq!(
         episode.actions,
@@ -145,7 +145,7 @@ fn sarsa_cliff_walking() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 20, 10, 0, 1, 2, 3, 4, 5, 6, 7, 17, 18, 28, 29]
+        vec![30, 20, 10, 0, 1, 2, 3, 4, 5, 6, 7, 17, 18, 28, 29, 39]
     );
     assert_eq!(
         episode.actions,
@@ -199,7 +199,7 @@ fn qlearning_cliff_walking() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+        vec![30, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 39]
     );
     assert_eq!(episode.actions, vec![3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1]);
     assert_eq!(
@@ -250,7 +250,7 @@ fn expected_sarsa_cliff_walking() {
 
     assert_eq!(
         episode.states,
-        vec![30, 20, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 29]
+        vec![30, 20, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 29, 39]
     );
     assert_eq!(episode.actions, vec![3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1]);
     assert_eq!(
@@ -299,7 +299,7 @@ fn double_qlearning_cliff_walking() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 20, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 19, 29]
+        vec![30, 20, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39]
     );
     assert_eq!(
         episode.actions,
@@ -354,7 +354,7 @@ fn n_step_sarsa_cliff_walking() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 20, 10, 11, 21, 22, 12, 13, 3, 4, 5, 6, 7, 8, 9, 19, 29]
+        vec![30, 20, 10, 11, 21, 22, 12, 13, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39]
     );
     assert_eq!(
         episode.actions,
@@ -410,7 +410,7 @@ fn n_step_expected_sarsa_cliff_walking() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 20, 21, 11, 1, 2, 3, 13, 14, 4, 5, 6, 7, 8, 9, 19, 29]
+        vec![30, 20, 21, 11, 1, 2, 3, 13, 14, 4, 5, 6, 7, 8, 9, 19, 29, 39]
     );
     assert_eq!(
         episode.actions,
@@ -466,7 +466,7 @@ fn n_step_tree_backup_windy_girdworld() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 31, 21, 22, 23, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39, 49, 48]
+        vec![30, 31, 21, 22, 23, 3, 4, 5, 6, 7, 8, 9, 19, 29, 39, 49, 48, 37]
     );
     assert_eq!(
         episode.actions,
@@ -538,7 +538,7 @@ fn n_step_q_sigma_windy_girdworld() {
     .unwrap();
     assert_eq!(
         episode.states,
-        vec![30, 31, 32, 33, 24, 15, 6, 7, 8, 9, 19, 29, 39, 49, 48]
+        vec![30, 31, 32, 33, 24, 15, 6, 7, 8, 9, 19, 29, 39, 49, 48, 37]
     );
     assert_eq!(
         episode.actions,

@@ -91,13 +91,28 @@ where
                 environment.render();
             }
         }
+
         // Planning
-        let planning_params = rsosq_planning::Params {
-            n_iterations: params.simulation_steps,
-            gamma: params.gamma,
-            step_size: params.step_size,
-        };
-        policy = rsosq_planning::learn(policy, &model, planning_params, rng, verbosity)?;
+        for _ in 0..params.simulation_steps {
+            // 1 select a state and an action at random
+            let (state, action) = if let Some(sa_sample) = model.sample_sa(rng) {
+                (sa_sample.state, sa_sample.action)
+            } else {
+                return Err(LearningError::ModelError);
+            };
+
+            // 2 get next state and reward
+            let next_step_sample = model.predict_step(state, action);
+
+            // 3 appy one-step tabular Q-learning
+            let q_sa = policy.get_q_value(state, action);
+            let q_max = policy
+                .get_max_q_value(next_step_sample.state)
+                .map_err(LearningError::PolicyStep)?;
+            let new_value =
+                q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
+            policy.update_q_entry(state, action, new_value);
+        }
     }
 
     Ok((policy, model))
