@@ -46,5 +46,5 @@ pub trait TabularModel {
         R: Rng + ?Sized;
 
     /// Returns states that precede the given state
-    fn get_preceding_sa(&self, state: i32) -> Vec<(TabularStateAction)>;
+    fn get_preceding_sa(&self, state: i32) -> Option<&Vec<TabularStateAction>>;
 }

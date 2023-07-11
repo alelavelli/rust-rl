@@ -32,7 +32,7 @@ impl Debug for EpisodeGenerationError {
 }
 
 /// Support struct representing state-action pair for tabular case
-#[derive(Hash, PartialEq, Eq, Copy, Clone)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct TabularStateAction {
     state: i32,
     action: i32,

@@ -2,10 +2,12 @@
 //!
 //! This struct represents a deterministic model
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use ndarray::{Array, Array2};
 use rand::{seq::IteratorRandom, Rng};
+
+use crate::TabularStateAction;
 
 use super::{TabularModel, TabularModelStep, TabularSampleSA};
 
@@ -18,6 +20,8 @@ pub struct DeterministicModel {
     reward_matrix: Array2<f32>,
     // experienced samples. state, action pairs the model has seen
     experienced_samples: HashSet<(i32, i32)>,
+    // hashmap providing vector of state action pairs that precede the state
+    precedessors: HashMap<i32, Vec<TabularStateAction>>,
 }
 
 impl DeterministicModel {
@@ -26,6 +30,7 @@ impl DeterministicModel {
             transition_matrix: Array::zeros((number_states, number_actions)),
             reward_matrix: Array::zeros((number_states, number_actions)),
             experienced_samples: HashSet::new(),
+            precedessors: HashMap::new(),
         }
     }
 }
@@ -42,6 +47,11 @@ impl TabularModel for DeterministicModel {
         self.experienced_samples.insert((state, action));
         self.transition_matrix[[state as usize, action as usize]] = next_state;
         self.reward_matrix[[state as usize, action as usize]] = reward;
+        let sa = TabularStateAction { state, action };
+        let vector = self.precedessors.entry(next_state).or_insert(Vec::new());
+        if !vector.contains(&sa) {
+            vector.push(sa)
+        }
     }
 
     fn sample_sa<R>(&self, rng: &mut R) -> Option<TabularSampleSA>
@@ -57,8 +67,8 @@ impl TabularModel for DeterministicModel {
             })
     }
 
-    fn get_preceding_sa(&self, state: i32) -> Vec<(crate::TabularStateAction)> {
-        todo!()
+    fn get_preceding_sa(&self, state: i32) -> Option<&Vec<TabularStateAction>> {
+        self.precedessors.get(&state)
     }
 }
 
@@ -66,7 +76,7 @@ impl TabularModel for DeterministicModel {
 mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
-    use crate::model::tabular::TabularModel;
+    use crate::{model::tabular::TabularModel, TabularStateAction};
 
     use super::DeterministicModel;
 
@@ -123,5 +133,56 @@ mod tests {
             let sample = sample.unwrap();
             assert!(seen_samples.contains(&(sample.state, sample.action)));
         }
+    }
+
+    #[test]
+    fn test_precedessors() {
+        let mut rng = StdRng::seed_from_u64(222);
+        let mut model = DeterministicModel::new(5, 2);
+
+        // the first time we try to sample we get None because the model never seen anything
+        let sample = model.sample_sa(&mut rng);
+        assert!(sample.is_none());
+
+        let s0 = 0;
+        let a0 = 0;
+        let s0_next = 1;
+        let r0 = 1.0;
+        model.update_step(s0, a0, s0_next, r0);
+
+        // the second time we should see only the sample we inserted
+        for _ in 0..5 {
+            let sample = model.sample_sa(&mut rng);
+            assert!(sample.is_some());
+            let sample = sample.unwrap();
+            assert_eq!(sample.state, s0);
+            assert_eq!(sample.action, a0);
+        }
+
+        // we add other samples and we check the sampling is correct
+        let s1 = 1;
+        let a1 = 1;
+        let s1_next = 1;
+        let r1 = 2.0;
+        model.update_step(s1, a1, s1_next, r1);
+        let s2 = 2;
+        let a2 = 0;
+        let s2_next = 3;
+        let r2 = 3.0;
+        model.update_step(s2, a2, s2_next, r2);
+
+        assert_eq!(
+            model.get_preceding_sa(1).unwrap(),
+            &vec![
+                TabularStateAction {
+                    state: s0,
+                    action: a0
+                },
+                TabularStateAction {
+                    state: s1,
+                    action: a1
+                }
+            ]
+        )
     }
 }
