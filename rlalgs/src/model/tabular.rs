@@ -2,6 +2,8 @@
 
 use rand::Rng;
 
+use crate::TabularStateAction;
+
 pub mod deterministic;
 
 /// Struct returned by the model
@@ -42,4 +44,7 @@ pub trait TabularModel {
     fn sample_sa<R>(&self, rng: &mut R) -> Option<TabularSampleSA>
     where
         R: Rng + ?Sized;
+
+    /// Returns states that precede the given state
+    fn get_preceding_sa(&self, state: i32) -> Option<&Vec<TabularStateAction>>;
 }

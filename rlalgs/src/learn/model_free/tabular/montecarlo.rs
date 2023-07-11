@@ -67,7 +67,7 @@ where
         let (states, actions, rewards) = (episode.states, episode.actions, episode.rewards);
         // Update Q function
         let mut g = 0.0;
-        for t in (0..states.len()).rev() {
+        for t in (0..(states.len() - 1)).rev() {
             g = params.gamma * g + rewards[t];
             // If we are in first_visit settings then we check that the pair s,a a time t is the first visit
             // otherwise, we enter always

@@ -106,6 +106,7 @@ where
         }
 
         if episode_step.terminated | (step_number as f64 >= episode_max_len) {
+            states.push(state);
             break;
         }
     }

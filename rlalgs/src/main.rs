@@ -1,7 +1,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::model_free::tabular::generate_tabular_episode;
-use rlalgs::learn::planning::tabular::dyna_q;
+use rlalgs::learn::planning::tabular::prioritized_sweeping;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::tabular::deterministic::DeterministicModel;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
@@ -28,12 +28,12 @@ fn main() {
     );
 
     // define parameters
-    let params = dyna_q::Params {
-        n_iterations: 1000,
-        real_world_steps: 1,
-        simulation_steps: 50,
+    let params = prioritized_sweeping::Params {
+        n_iterations: 8000,
+        simulation_steps: 5,
+        tolerance: 0.05,
         gamma: 0.95,
-        step_size: 0.1,
+        step_size: 0.5,
     };
 
     let verbosity = VerbosityConfig {
@@ -42,7 +42,7 @@ fn main() {
     };
 
     // Learn policy
-    let result = dyna_q::learn(policy, env, model, params, &mut rng, &verbosity);
+    let result = prioritized_sweeping::learn(policy, env, model, params, &mut rng, &verbosity);
 
     // Make an episode with greedy policy
     let mut env = SimpleMaze::new();
