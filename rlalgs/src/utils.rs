@@ -1,6 +1,5 @@
-pub mod tree;
 pub mod arena_tree;
-
+pub mod tree;
 
 use std::{error::Error, fmt::Debug};
 

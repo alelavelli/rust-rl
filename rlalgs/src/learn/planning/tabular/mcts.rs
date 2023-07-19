@@ -27,28 +27,3 @@
 //!         Hence, the value of this node will be decreased. This is used to avoid multiple
 //!         threads visit the same portion of the tree.
 //!
-
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::{Weak, Rc};
-
-/// Tree node built during the iteration of MCTS
-#[derive(Debug)]
-pub struct Node {
-    pub parent: RefCell<Weak<Node>>,
-    pub children: RefCell<HashMap<i32, RefCell<Node>>>,
-    pub state: i32,
-    pub actions: Vec<i32>,
-    pub depth: i32,
-    // index of the parent's action that lead to this node
-    pub parent_action: Option<i32>,
-    pub terminal: bool,
-    pub visits: i32,
-    pub value: f32,
-    // number of visits to each available action
-    pub action_visits: HashMap<i32, i32>,
-    // value of each available action
-    pub action_values: HashMap<i32, f32>,
-    // maximum value used for computing ucbs
-    pub max_value: f32,
-}

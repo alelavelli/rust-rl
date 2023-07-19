@@ -1,5 +1,9 @@
-use core::fmt::{Debug, self};
-use std::{fmt::Display, sync::{RwLock, Arc, Weak}, ops::Deref};
+use core::fmt::{self, Debug};
+use std::{
+    fmt::Display,
+    ops::Deref,
+    sync::{Arc, RwLock, Weak},
+};
 
 /// This struct holds underlying data. It shouldn't be created directly, instead use:
 /// [`Node`](struct@Node).
@@ -33,25 +37,22 @@ where
 
 impl<T> fmt::Debug for NodeData<T>
 where
-  T: Debug + Display,
+    T: Debug + Display,
 {
-  fn fmt(
-    &self,
-    f: &mut fmt::Formatter<'_>,
-  ) -> fmt::Result {
-    let mut parent_msg = String::new();
-    if let Some(parent) = self.parent.read().unwrap().upgrade() {
-      parent_msg.push_str(format!("📦 {}", parent.value.read().unwrap()).as_str());
-    } else {
-      parent_msg.push_str("🚫 None");
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parent_msg = String::new();
+        if let Some(parent) = self.parent.read().unwrap().upgrade() {
+            parent_msg.push_str(format!("📦 {}", parent.value.read().unwrap()).as_str());
+        } else {
+            parent_msg.push_str("🚫 None");
+        }
+        f.debug_struct("Node")
+            .field("value", &self.value)
+            // .field("parent", &self.parent)
+            .field("parent", &parent_msg)
+            .field("children", &self.children)
+            .finish()
     }
-    f.debug_struct("Node")
-      .field("value", &self.value)
-      // .field("parent", &self.parent)
-      .field("parent", &parent_msg)
-      .field("children", &self.children)
-      .finish()
-  }
 }
 
 // Thread safe reference counter for multiple ownership
@@ -102,18 +103,18 @@ pub struct Node<T: Display> {
 
 impl<T> Deref for Node<T>
 where
-    T: Display
+    T: Display,
 {
     type Target = NodeData<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.arc_ref
     }
-} 
+}
 
 impl<T> Node<T>
 where
-    T: Display
+    T: Display,
 {
     pub fn new(value: T) -> Node<T> {
         let new_node = NodeData {
@@ -127,7 +128,7 @@ where
         Node { arc_ref }
     }
 
-    pub fn update_value(self: &Self, new_value: T) {
+    pub fn update_value(&self, new_value: T) {
         *self.value.write().unwrap() = new_value;
     }
 
@@ -139,47 +140,39 @@ where
         *self.depth.write().unwrap() -= 1;
     }
 
-    pub fn get_copy_of_internal_arc(self: &Self) -> NodeDataRef<T> {
+    pub fn get_copy_of_internal_arc(&self) -> NodeDataRef<T> {
         Arc::clone(&self.arc_ref)
     }
 
-    pub fn create_and_add_child(
-        self: &Self,
-        value: T,
-    ) -> NodeDataRef<T> {
+    pub fn create_and_add_child(&self, value: T) -> NodeDataRef<T> {
         let new_child = Node::new(value);
         new_child.increase_depth();
         self.add_child_and_update_its_parent(&new_child);
         new_child.get_copy_of_internal_arc()
     }
 
-    pub fn add_child_and_update_its_parent(
-        self: &Self,
-        child: &Node<T>,
-    ) {
-        {   // write lock over children vector
+    pub fn add_child_and_update_its_parent(&self, child: &Node<T>) {
+        {
+            // write lock over children vector
             let mut my_children = self.arc_ref.children.write().unwrap();
             my_children.push(child.get_copy_of_internal_arc());
-        }   // `my_children` guard dropped
+        } // `my_children` guard dropped
 
-        {   // I can access to parent directly since I implemented Deref trait
+        {
+            // I can access to parent directly since I implemented Deref trait
             let mut childs_parent = child.parent.write().unwrap();
             *childs_parent = Arc::downgrade(&self.get_copy_of_internal_arc());
         } // `my_parent` guard dropped
     }
 
-    pub fn has_parent(self: &Self) -> bool {
+    pub fn has_parent(&self) -> bool {
         self.get_parent().is_some()
     }
 
-    pub fn get_parent(self: &Self) -> Option<NodeDataRef<T>> {
+    pub fn get_parent(&self) -> Option<NodeDataRef<T>> {
         // uses read lock to access parent data
         let my_parent_weak = self.arc_ref.parent.read().unwrap();
-        if let Some(my_parent_arc_ref) = my_parent_weak.upgrade() {
-            Some(my_parent_arc_ref)
-        } else {
-            None
-        }
+        my_parent_weak.upgrade()
     }
 }
 
@@ -202,7 +195,10 @@ fn test_tree_low_level_node_manipulation() {
         assert_eq!(Arc::strong_count(&child_node.get_copy_of_internal_arc()), 3);
         assert_eq!(Arc::weak_count(&child_node.get_copy_of_internal_arc()), 0);
 
-        assert_eq!(Arc::strong_count(&parent_node.get_copy_of_internal_arc()), 2);
+        assert_eq!(
+            Arc::strong_count(&parent_node.get_copy_of_internal_arc()),
+            2
+        );
         assert_eq!(Arc::weak_count(&parent_node.get_copy_of_internal_arc()), 1);
 
         assert!(child_node.has_parent());
@@ -211,7 +207,10 @@ fn test_tree_low_level_node_manipulation() {
 
     // `child_node`'s parent is now `None`, its an orphan
     assert!(!child_node.has_parent());
-    assert_eq!(*child_node.get_copy_of_internal_arc().value.read().unwrap(), 3);
+    assert_eq!(
+        *child_node.get_copy_of_internal_arc().value.read().unwrap(),
+        3
+    );
 
     assert_eq!(Arc::strong_count(&child_node.get_copy_of_internal_arc()), 2);
     assert_eq!(Arc::weak_count(&child_node.get_copy_of_internal_arc()), 0);
@@ -220,13 +219,27 @@ fn test_tree_low_level_node_manipulation() {
 #[test]
 fn test_tree_simple_api() {
     let root_node = Node::new(5);
-    assert_eq!(*root_node.get_copy_of_internal_arc().value.read().unwrap(), 5);
+    assert_eq!(
+        *root_node.get_copy_of_internal_arc().value.read().unwrap(),
+        5
+    );
 
     {
         let child_node_data_ref = root_node.create_and_add_child(3);
         assert_eq!(*child_node_data_ref.value.read().unwrap(), 3);
-        assert_eq!(root_node.get_copy_of_internal_arc().children.read().unwrap().len(), 1);
-        assert_eq!(*child_node_data_ref.value.read().unwrap(), *root_node.children.read().unwrap()[0].value.read().unwrap());
+        assert_eq!(
+            root_node
+                .get_copy_of_internal_arc()
+                .children
+                .read()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            *child_node_data_ref.value.read().unwrap(),
+            *root_node.children.read().unwrap()[0].value.read().unwrap()
+        );
     }
 
     println!("{}: {:#?}", "[tree]", root_node);
