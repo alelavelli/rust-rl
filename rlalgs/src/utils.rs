@@ -4,7 +4,7 @@ pub mod arena_tree;
 
 use std::{error::Error, fmt::Debug};
 
-#[derive(thiserror::Error)]
+#[derive(thiserror::Error, PartialEq)]
 pub enum TreeError {
     #[error("Root Node already exists in the arena")]
     RootAlreadyExists,

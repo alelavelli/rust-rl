@@ -27,18 +27,23 @@ pub struct Node<T> {
 pub struct TreeArena<T> {
     map: RwLock<HashMap<NodeId, Arc<RwLock<Node<T>>>>>,
     global_counter: RwLock<NodeId>,
-    root: Option<NodeId>
+    root: RwLock<Option<NodeId>>
 }
 
 impl<T> TreeArena<T> {
     pub fn new() -> TreeArena<T> {
-        TreeArena { map: RwLock::new(HashMap::new()), global_counter: RwLock::new(0) }
+        TreeArena { map: RwLock::new(HashMap::new()), global_counter: RwLock::new(0), root: RwLock::new(None) }
     }
 
     /// Generate new id in the arena and delete the previous one
     fn generate_id(&self) -> NodeId {
         *self.global_counter.write().unwrap() += 1;
         self.global_counter.read().unwrap().clone()
+    }
+
+    /// Retruns the list of the nodes in the tree
+    pub fn node_list(&self) -> Vec<NodeId> {
+        self.map.read().unwrap().keys().into_iter().map(|x| *x).collect_vec()
     }
 
     /// Return node if it exists in the arena
@@ -48,10 +53,18 @@ impl<T> TreeArena<T> {
 
     /// Add a node in the arena with the given parent
     pub fn add_node(&self, parent: Option<NodeId>, attributes: T) -> Result<NodeId, TreeError> {
-        if parent.is_none() & self.root.is_some() {
+        let root_is_present = {
+            self.root.read().unwrap().is_some()
+        };
+
+        if parent.is_none() & root_is_present {
             Err(TreeError::RootAlreadyExists)
 
         } else {
+            // first create the new node id
+            // then create the node
+            // add it to the map
+            // If it is not root node, modify the parent adding it as its child
 
             let new_id = self.generate_id();
 
@@ -59,14 +72,23 @@ impl<T> TreeArena<T> {
                 id: new_id,
                 parent: parent,
                 children: Vec::new(),
-                depth: if let Some(parent_id) = parent { self.get_node(parent_id).unwrap().read().unwrap().id } else { 0 },
+                depth: if let Some(parent_id) = parent { self.get_node(parent_id).unwrap().read().unwrap().depth + 1 } else { 0 },
                 attributes
             };
 
             {
                 self.map.write().unwrap().insert(new_id, Arc::new(RwLock::new(node)));
             } // unlock here the map
+            
+            if parent.is_some() {
+                let parent_node = self.get_node(parent.unwrap());
+                parent_node.unwrap().write().unwrap().children.push(new_id);
+            }
 
+            if !root_is_present {
+                // if the arena has no root then we set this new node as the root
+                *self.root.write().unwrap() = Some(new_id);
+            }
             Ok(new_id)
         }
     }
@@ -75,11 +97,8 @@ impl<T> TreeArena<T> {
     /// 
     /// If the node does not exist then it returs Ok since it's not a problem
     pub fn remove_node(&self, node_id: NodeId) -> Result<(), TreeError> {
-        if self.get_node(node_id).is_some() {
-            // we wrap it in a block to delete the write lock guard
-            {
-                self.map.write().unwrap().remove(&node_id).unwrap()
-            };
+        if let Some(node) = self.get_node(node_id) {
+            
             // it could be happen that the read block will block the write lock in the next the remove_node 
             for c in self.get_children(node_id).unwrap() {
                 let result = self.remove_node(c.read().unwrap().id);
@@ -87,8 +106,21 @@ impl<T> TreeArena<T> {
                     return Err(TreeError::NodeRemoveError)
                 }
             }
-        }
-        Ok(())
+
+            // If it is the root node then we empty the struct attribute
+            if node.read().unwrap().parent.is_none() {
+                *self.root.write().unwrap() = None;
+            }
+
+            // we wrap it in a block to delete the write lock guard
+            {
+                self.map.write().unwrap().remove(&node_id).unwrap()
+            };
+
+            Ok(())    
+        } else {
+            Err(TreeError::NodeDoesNotExist)
+        }        
     }
 
     /// Check if the node is in the arena
@@ -98,7 +130,7 @@ impl<T> TreeArena<T> {
 
     /// Return the root Node of the arena
     pub fn get_root(&self) -> Option<Arc<RwLock<Node<T>>>> {
-        self.root.map(|node_id| self.get_node(node_id).unwrap())
+        self.root.read().unwrap().map(|node_id| self.get_node(node_id).unwrap())
     }
 
     /// Return the vector of children of the given node. Err if the node does not exists
@@ -183,11 +215,281 @@ where
                 // we just take the hashmap of new_arena and put is inside the new_arena map
                 // when we do this we need to update the index by an offset equal to the max index the new_arena has
                 // then, the depth need also to be update adding the depth of the parent + 1
-                new_arena.grift(child_arena, parent_id);
+                new_arena.grift(child_arena, parent_id).unwrap();
             }
             Ok(new_arena)
         } else {
             Err(TreeError::NodeDoesNotExist)
         }
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+
+    use crate::utils::{arena_tree::NodeId, TreeError};
+
+    use super::TreeArena;
+
+    #[test]
+    fn test_basic_arena() {
+        let arena = TreeArena::<i32>::new();
+        
+        assert!(arena.get_root().is_none());
+
+        // Add the root node
+        let res = arena.add_node(None, 1);
+        assert!(res.is_ok());
+        let root_id = res.unwrap();
+
+        // Try to add a new root node
+        let res = arena.add_node(None, 10);
+        assert!(res.is_err());
+
+
+        // Add two children to the root node
+        let res = arena.add_node(Some(root_id), 10);
+        assert!(res.is_ok());
+        let first_child = res.unwrap();
+        let res = arena.add_node(Some(root_id), 11);
+        assert!(res.is_ok());
+        let second_child = res.unwrap();
+
+        // Add two children to the second child
+        let res = arena.add_node(Some(second_child), 100);
+        assert!(res.is_ok());
+        let first_grandson = res.unwrap();
+        let res = arena.add_node(Some(second_child), 101);
+        assert!(res.is_ok());
+        let second_grandson = res.unwrap();
+        
+        // test get_root
+        assert_eq!(root_id, arena.get_root().unwrap().read().unwrap().id);
+
+        // test get_children
+        assert_eq!(
+            vec![first_child, second_child], 
+            arena.get_children(root_id).unwrap().iter().map(|x| x.read().unwrap().id).collect_vec()
+        );
+        assert_eq!(
+            Vec::<NodeId>::new(),
+            arena.get_children(first_child).unwrap().iter().map(|x| x.read().unwrap().id).collect_vec()
+        );
+        assert_eq!(
+            vec![first_grandson, second_grandson], 
+            arena.get_children(second_child).unwrap().iter().map(|x| x.read().unwrap().id).collect_vec()
+        );
+
+        // test get_children of missing node
+        assert_eq!(
+            TreeError::NodeDoesNotExist,
+            arena.get_children(40).err().unwrap()
+        );
+
+        // test node_list
+        let mut node_list = arena.node_list();
+        node_list.sort();
+        assert_eq!(
+            vec![root_id, first_child, second_child, first_grandson, second_grandson],
+            node_list
+        );
+
+        // test get_parent
+        assert_eq!(root_id, arena.get_parent(first_child).unwrap().unwrap().read().unwrap().id);
+        assert_eq!(root_id, arena.get_parent(second_child).unwrap().unwrap().read().unwrap().id);
+        assert_eq!(second_child, arena.get_parent(first_grandson).unwrap().unwrap().read().unwrap().id);
+        assert_eq!(second_child, arena.get_parent(second_grandson).unwrap().unwrap().read().unwrap().id);
+
+        // test get_parent for missing node
+        assert_eq!(
+            TreeError::NodeDoesNotExist,
+            arena.get_children(40).err().unwrap()
+        );
+
+        // test has_node
+        assert!(arena.has_node(root_id));
+        assert!(!arena.has_node(40));
+
+        // test get_node
+        assert_eq!(first_child, arena.get_node(first_child).unwrap().read().unwrap().id);
+
+        // test get_node for missing node
+        assert!(arena.get_node(40).is_none());
+
+        // test depth
+        assert_eq!(0, arena.get_node(root_id).unwrap().read().unwrap().depth);
+        assert_eq!(1, arena.get_node(first_child).unwrap().read().unwrap().depth);
+        assert_eq!(1, arena.get_node(second_child).unwrap().read().unwrap().depth);
+        assert_eq!(2, arena.get_node(first_grandson).unwrap().read().unwrap().depth);
+        assert_eq!(2, arena.get_node(second_grandson).unwrap().read().unwrap().depth);
+
+    }
+
+    #[test]
+    fn test_remove_leaf() {
+        let arena = TreeArena::<i32>::new();
+        
+        assert!(arena.get_root().is_none());
+
+        // Add the root node
+        let res = arena.add_node(None, 1);
+        assert!(res.is_ok());
+        let root_id = res.unwrap();
+
+        // Try to add a new root node
+        let res = arena.add_node(None, 10);
+        assert!(res.is_err());
+
+
+        // Add two children to the root node
+        let res = arena.add_node(Some(root_id), 10);
+        assert!(res.is_ok());
+        let first_child = res.unwrap();
+        let res = arena.add_node(Some(root_id), 11);
+        assert!(res.is_ok());
+        let second_child = res.unwrap();
+
+        // Add two children to the second child
+        let res = arena.add_node(Some(second_child), 100);
+        assert!(res.is_ok());
+        let first_grandson = res.unwrap();
+        let res = arena.add_node(Some(second_child), 101);
+        assert!(res.is_ok());
+        let second_grandson = res.unwrap();
+
+        assert_eq!(5, arena.node_list().len());
+        let res = arena.remove_node(first_grandson);
+        assert!(res.is_ok());
+        assert!(arena.get_node(first_grandson).is_none());
+        assert_eq!(4, arena.node_list().len());
+
+    } 
+
+    #[test]
+    fn test_remove_node() {
+        let arena = TreeArena::<i32>::new();
+        
+        assert!(arena.get_root().is_none());
+
+        // Add the root node
+        let res = arena.add_node(None, 1);
+        assert!(res.is_ok());
+        let root_id = res.unwrap();
+
+        // Try to add a new root node
+        let res = arena.add_node(None, 10);
+        assert!(res.is_err());
+
+
+        // Add two children to the root node
+        let res = arena.add_node(Some(root_id), 10);
+        assert!(res.is_ok());
+        let first_child = res.unwrap();
+        let res = arena.add_node(Some(root_id), 11);
+        assert!(res.is_ok());
+        let second_child = res.unwrap();
+
+        // Add two children to the second child
+        let res = arena.add_node(Some(second_child), 100);
+        assert!(res.is_ok());
+        let first_grandson = res.unwrap();
+        let res = arena.add_node(Some(second_child), 101);
+        assert!(res.is_ok());
+        let second_grandson = res.unwrap();
+
+        assert_eq!(5, arena.node_list().len());
+        let res = arena.remove_node(second_child);
+        assert!(res.is_ok());
+        assert!(arena.get_node(second_child).is_none());
+        assert!(arena.get_node(first_grandson).is_none());
+        assert!(arena.get_node(second_grandson).is_none());
+        assert_eq!(2, arena.node_list().len());
+    }
+
+    #[test]
+    fn test_remove_root() {
+        let arena = TreeArena::<i32>::new();
+        
+        assert!(arena.get_root().is_none());
+
+        // Add the root node
+        let res = arena.add_node(None, 1);
+        assert!(res.is_ok());
+        let root_id = res.unwrap();
+
+        // Try to add a new root node
+        let res = arena.add_node(None, 10);
+        assert!(res.is_err());
+
+
+        // Add two children to the root node
+        let res = arena.add_node(Some(root_id), 10);
+        assert!(res.is_ok());
+        let first_child = res.unwrap();
+        let res = arena.add_node(Some(root_id), 11);
+        assert!(res.is_ok());
+        let second_child = res.unwrap();
+
+        // Add two children to the second child
+        let res = arena.add_node(Some(second_child), 100);
+        assert!(res.is_ok());
+        let first_grandson = res.unwrap();
+        let res = arena.add_node(Some(second_child), 101);
+        assert!(res.is_ok());
+        let second_grandson = res.unwrap();
+
+        assert_eq!(5, arena.node_list().len());
+        let res = arena.remove_node(root_id);
+        assert!(res.is_ok());
+        assert!(arena.get_node(root_id).is_none());
+        assert!(arena.get_node(first_child).is_none());
+        assert!(arena.get_node(second_child).is_none());
+        assert!(arena.get_node(first_grandson).is_none());
+        assert!(arena.get_node(second_grandson).is_none());
+        assert_eq!(0, arena.node_list().len());
+
+        // add a new root
+        let res = arena.add_node(None, 1);
+        assert!(res.is_ok());
+    }  
+
+    #[test]
+    fn test_remove_missing() {
+        let arena = TreeArena::<i32>::new();
+        
+        assert!(arena.get_root().is_none());
+
+        // Add the root node
+        let res = arena.add_node(None, 1);
+        assert!(res.is_ok());
+        let root_id = res.unwrap();
+
+        // Try to add a new root node
+        let res = arena.add_node(None, 10);
+        assert!(res.is_err());
+
+
+        // Add two children to the root node
+        let res = arena.add_node(Some(root_id), 10);
+        assert!(res.is_ok());
+        let first_child = res.unwrap();
+        let res = arena.add_node(Some(root_id), 11);
+        assert!(res.is_ok());
+        let second_child = res.unwrap();
+
+        // Add two children to the second child
+        let res = arena.add_node(Some(second_child), 100);
+        assert!(res.is_ok());
+        let first_grandson = res.unwrap();
+        let res = arena.add_node(Some(second_child), 101);
+        assert!(res.is_ok());
+        let second_grandson = res.unwrap();
+
+        assert_eq!(5, arena.node_list().len());
+        let res = arena.remove_node(45);
+        assert!(res.is_err());
+        assert_eq!(5, arena.node_list().len());
+    } 
 }
