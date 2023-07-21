@@ -282,6 +282,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::{thread, sync::Arc, time::Duration};
+
     use itertools::Itertools;
 
     use crate::utils::{arena_tree::NodeId, TreeError};
@@ -822,5 +824,79 @@ mod tests {
         let extracted_arena = test_arena.arena.extract_subtree(43);
 
         assert!(extracted_arena.is_err());
+    }
+
+    #[test]
+    fn test_multithread_read() {
+        let test_arena = init_test();
+
+        let arc_test_vars = Arc::new(test_arena);
+        let arc_test_vars_0 = Arc::clone(&arc_test_vars);
+        let arc_test_vars_1 = Arc::clone(&arc_test_vars);
+
+        let handle_0 = thread::spawn(
+            move || {
+                let mut node_list = arc_test_vars_0.arena.node_list();
+                node_list.sort();
+                assert_eq!(
+                    vec![
+                        arc_test_vars_0.root_id,
+                        arc_test_vars_0.first_child,
+                        arc_test_vars_0.second_child,
+                        arc_test_vars_0.first_grandson,
+                        arc_test_vars_0.second_grandson
+                    ],
+                    node_list
+                );
+            }
+        );
+        let handle_1 = thread::spawn(
+            move || {
+                let mut node_list = arc_test_vars_1.arena.node_list();
+                node_list.sort();
+                assert_eq!(
+                    vec![
+                        arc_test_vars_1.root_id,
+                        arc_test_vars_1.first_child,
+                        arc_test_vars_1.second_child,
+                        arc_test_vars_1.first_grandson,
+                        arc_test_vars_1.second_grandson
+                    ],
+                    node_list
+                );
+            }
+        );
+        // if one thread panics then the join().unwrap() will panic as well
+        handle_0.join().unwrap();
+        handle_1.join().unwrap();
+    }
+
+    #[test]
+    fn test_multithread_read_write() {
+        // here we test two parallel threads, one updates the arena while the second
+        // reads from it
+
+        let test_arena = init_test();
+
+        let arc_test_vars = Arc::new(test_arena);
+        let arc_test_vars_0 = Arc::clone(&arc_test_vars);
+        let arc_test_vars_1 = Arc::clone(&arc_test_vars);
+
+        let handle_0 = thread::spawn(
+            move || {
+                assert_eq!(arc_test_vars_0.arena.node_list().len(), 5);
+                arc_test_vars_0.arena.add_node(Some(arc_test_vars_0.first_child), 5).unwrap();
+                assert_eq!(arc_test_vars_0.arena.node_list().len(), 6);
+            }
+        );
+        let handle_1 = thread::spawn(
+            move || {
+                thread::sleep(Duration::from_secs(1));  
+                assert_eq!(arc_test_vars_1.arena.node_list().len(), 6);
+            }
+        );
+        // if one thread panics then the join().unwrap() will panic as well
+        handle_0.join().unwrap();
+        handle_1.join().unwrap();
     }
 }
