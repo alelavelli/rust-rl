@@ -56,13 +56,7 @@ impl<T> TreeArena<T> {
 
     /// Retruns the list of the nodes in the tree
     pub fn node_list(&self) -> Vec<NodeId> {
-        self.map
-            .read()
-            .unwrap()
-            .keys()
-            .into_iter()
-            .copied()
-            .collect_vec()
+        self.map.read().unwrap().keys().copied().collect()
     }
 
     /// Return node if it exists in the arena
@@ -282,7 +276,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{thread, sync::Arc, time::Duration};
+    use std::{sync::Arc, thread, time::Duration};
 
     use itertools::Itertools;
 
@@ -296,7 +290,7 @@ mod tests {
         first_child: NodeId,
         second_child: NodeId,
         first_grandson: NodeId,
-        second_grandson: NodeId
+        second_grandson: NodeId,
     }
 
     fn init_test() -> TestArena {
@@ -329,7 +323,14 @@ mod tests {
         assert!(res.is_ok());
         let second_grandson = res.unwrap();
 
-        TestArena { arena, root_id, first_child, second_child, first_grandson, second_grandson }
+        TestArena {
+            arena,
+            root_id,
+            first_child,
+            second_child,
+            first_grandson,
+            second_grandson,
+        }
     }
 
     #[test]
@@ -337,12 +338,16 @@ mod tests {
         let test_arena = init_test();
 
         // test get_root
-        assert_eq!(test_arena.root_id, test_arena.arena.get_root().unwrap().read().unwrap().id);
+        assert_eq!(
+            test_arena.root_id,
+            test_arena.arena.get_root().unwrap().read().unwrap().id
+        );
 
         // test get_children
         assert_eq!(
             vec![test_arena.first_child, test_arena.second_child],
-            test_arena.arena
+            test_arena
+                .arena
                 .get_children(test_arena.root_id)
                 .unwrap()
                 .iter()
@@ -351,7 +356,8 @@ mod tests {
         );
         assert_eq!(
             Vec::<NodeId>::new(),
-            test_arena.arena
+            test_arena
+                .arena
                 .get_children(test_arena.first_child)
                 .unwrap()
                 .iter()
@@ -360,7 +366,8 @@ mod tests {
         );
         assert_eq!(
             vec![test_arena.first_grandson, test_arena.second_grandson],
-            test_arena.arena
+            test_arena
+                .arena
                 .get_children(test_arena.second_child)
                 .unwrap()
                 .iter()
@@ -391,7 +398,8 @@ mod tests {
         // test get_parent
         assert_eq!(
             test_arena.root_id,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_parent(test_arena.first_child)
                 .unwrap()
                 .unwrap()
@@ -401,7 +409,8 @@ mod tests {
         );
         assert_eq!(
             test_arena.root_id,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_parent(test_arena.second_child)
                 .unwrap()
                 .unwrap()
@@ -411,7 +420,8 @@ mod tests {
         );
         assert_eq!(
             test_arena.second_child,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_parent(test_arena.first_grandson)
                 .unwrap()
                 .unwrap()
@@ -421,7 +431,8 @@ mod tests {
         );
         assert_eq!(
             test_arena.second_child,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_parent(test_arena.second_grandson)
                 .unwrap()
                 .unwrap()
@@ -443,25 +454,53 @@ mod tests {
         // test get_node
         assert_eq!(
             test_arena.first_child,
-            test_arena.arena.get_node(test_arena.first_child).unwrap().read().unwrap().id
+            test_arena
+                .arena
+                .get_node(test_arena.first_child)
+                .unwrap()
+                .read()
+                .unwrap()
+                .id
         );
 
         // test get_node for missing node
         assert!(test_arena.arena.get_node(40).is_none());
 
         // test depth
-        assert_eq!(0, test_arena.arena.get_node(test_arena.root_id).unwrap().read().unwrap().depth);
         assert_eq!(
-            1,
-            test_arena.arena.get_node(test_arena.first_child).unwrap().read().unwrap().depth
+            0,
+            test_arena
+                .arena
+                .get_node(test_arena.root_id)
+                .unwrap()
+                .read()
+                .unwrap()
+                .depth
         );
         assert_eq!(
             1,
-            test_arena.arena.get_node(test_arena.second_child).unwrap().read().unwrap().depth
+            test_arena
+                .arena
+                .get_node(test_arena.first_child)
+                .unwrap()
+                .read()
+                .unwrap()
+                .depth
+        );
+        assert_eq!(
+            1,
+            test_arena
+                .arena
+                .get_node(test_arena.second_child)
+                .unwrap()
+                .read()
+                .unwrap()
+                .depth
         );
         assert_eq!(
             2,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.first_grandson)
                 .unwrap()
                 .read()
@@ -470,7 +509,8 @@ mod tests {
         );
         assert_eq!(
             2,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
@@ -486,7 +526,10 @@ mod tests {
         assert_eq!(5, test_arena.arena.node_list().len());
         let res = test_arena.arena.remove_node(test_arena.first_grandson);
         assert!(res.is_ok());
-        assert!(test_arena.arena.get_node(test_arena.first_grandson).is_none());
+        assert!(test_arena
+            .arena
+            .get_node(test_arena.first_grandson)
+            .is_none());
         assert_eq!(4, test_arena.arena.node_list().len());
     }
 
@@ -498,8 +541,14 @@ mod tests {
         let res = test_arena.arena.remove_node(test_arena.second_child);
         assert!(res.is_ok());
         assert!(test_arena.arena.get_node(test_arena.second_child).is_none());
-        assert!(test_arena.arena.get_node(test_arena.first_grandson).is_none());
-        assert!(test_arena.arena.get_node(test_arena.second_grandson).is_none());
+        assert!(test_arena
+            .arena
+            .get_node(test_arena.first_grandson)
+            .is_none());
+        assert!(test_arena
+            .arena
+            .get_node(test_arena.second_grandson)
+            .is_none());
         assert_eq!(2, test_arena.arena.node_list().len());
     }
 
@@ -513,8 +562,14 @@ mod tests {
         assert!(test_arena.arena.get_node(test_arena.root_id).is_none());
         assert!(test_arena.arena.get_node(test_arena.first_child).is_none());
         assert!(test_arena.arena.get_node(test_arena.second_child).is_none());
-        assert!(test_arena.arena.get_node(test_arena.first_grandson).is_none());
-        assert!(test_arena.arena.get_node(test_arena.second_grandson).is_none());
+        assert!(test_arena
+            .arena
+            .get_node(test_arena.first_grandson)
+            .is_none());
+        assert!(test_arena
+            .arena
+            .get_node(test_arena.second_grandson)
+            .is_none());
         assert_eq!(0, test_arena.arena.node_list().len());
 
         // add a new root
@@ -574,7 +629,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
@@ -607,7 +663,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_child)
                 .unwrap()
                 .read()
@@ -621,7 +678,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.first_grandson)
                 .unwrap()
                 .read()
@@ -635,7 +693,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
@@ -649,7 +708,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_child)
                 .unwrap()
                 .read()
@@ -702,7 +762,13 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena.get_node(test_arena.root_id).unwrap().read().unwrap().attributes,
+            test_arena
+                .arena
+                .get_node(test_arena.root_id)
+                .unwrap()
+                .read()
+                .unwrap()
+                .attributes,
         );
 
         // verify that the other nodes are the same
@@ -713,7 +779,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.first_child)
                 .unwrap()
                 .read()
@@ -727,7 +794,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_child)
                 .unwrap()
                 .read()
@@ -741,7 +809,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.first_grandson)
                 .unwrap()
                 .read()
@@ -755,7 +824,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena
+            test_arena
+                .arena
                 .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
@@ -771,7 +841,13 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            test_arena.arena.get_node(test_arena.root_id).unwrap().read().unwrap().attributes
+            test_arena
+                .arena
+                .get_node(test_arena.root_id)
+                .unwrap()
+                .read()
+                .unwrap()
+                .attributes
         );
 
         // verify the parent of first_child and second_child
@@ -834,38 +910,34 @@ mod tests {
         let arc_test_vars_0 = Arc::clone(&arc_test_vars);
         let arc_test_vars_1 = Arc::clone(&arc_test_vars);
 
-        let handle_0 = thread::spawn(
-            move || {
-                let mut node_list = arc_test_vars_0.arena.node_list();
-                node_list.sort();
-                assert_eq!(
-                    vec![
-                        arc_test_vars_0.root_id,
-                        arc_test_vars_0.first_child,
-                        arc_test_vars_0.second_child,
-                        arc_test_vars_0.first_grandson,
-                        arc_test_vars_0.second_grandson
-                    ],
-                    node_list
-                );
-            }
-        );
-        let handle_1 = thread::spawn(
-            move || {
-                let mut node_list = arc_test_vars_1.arena.node_list();
-                node_list.sort();
-                assert_eq!(
-                    vec![
-                        arc_test_vars_1.root_id,
-                        arc_test_vars_1.first_child,
-                        arc_test_vars_1.second_child,
-                        arc_test_vars_1.first_grandson,
-                        arc_test_vars_1.second_grandson
-                    ],
-                    node_list
-                );
-            }
-        );
+        let handle_0 = thread::spawn(move || {
+            let mut node_list = arc_test_vars_0.arena.node_list();
+            node_list.sort();
+            assert_eq!(
+                vec![
+                    arc_test_vars_0.root_id,
+                    arc_test_vars_0.first_child,
+                    arc_test_vars_0.second_child,
+                    arc_test_vars_0.first_grandson,
+                    arc_test_vars_0.second_grandson
+                ],
+                node_list
+            );
+        });
+        let handle_1 = thread::spawn(move || {
+            let mut node_list = arc_test_vars_1.arena.node_list();
+            node_list.sort();
+            assert_eq!(
+                vec![
+                    arc_test_vars_1.root_id,
+                    arc_test_vars_1.first_child,
+                    arc_test_vars_1.second_child,
+                    arc_test_vars_1.first_grandson,
+                    arc_test_vars_1.second_grandson
+                ],
+                node_list
+            );
+        });
         // if one thread panics then the join().unwrap() will panic as well
         handle_0.join().unwrap();
         handle_1.join().unwrap();
@@ -882,19 +954,18 @@ mod tests {
         let arc_test_vars_0 = Arc::clone(&arc_test_vars);
         let arc_test_vars_1 = Arc::clone(&arc_test_vars);
 
-        let handle_0 = thread::spawn(
-            move || {
-                assert_eq!(arc_test_vars_0.arena.node_list().len(), 5);
-                arc_test_vars_0.arena.add_node(Some(arc_test_vars_0.first_child), 5).unwrap();
-                assert_eq!(arc_test_vars_0.arena.node_list().len(), 6);
-            }
-        );
-        let handle_1 = thread::spawn(
-            move || {
-                thread::sleep(Duration::from_secs(1));  
-                assert_eq!(arc_test_vars_1.arena.node_list().len(), 6);
-            }
-        );
+        let handle_0 = thread::spawn(move || {
+            assert_eq!(arc_test_vars_0.arena.node_list().len(), 5);
+            arc_test_vars_0
+                .arena
+                .add_node(Some(arc_test_vars_0.first_child), 5)
+                .unwrap();
+            assert_eq!(arc_test_vars_0.arena.node_list().len(), 6);
+        });
+        let handle_1 = thread::spawn(move || {
+            thread::sleep(Duration::from_secs(1));
+            assert_eq!(arc_test_vars_1.arena.node_list().len(), 6);
+        });
         // if one thread panics then the join().unwrap() will panic as well
         handle_0.join().unwrap();
         handle_1.join().unwrap();
