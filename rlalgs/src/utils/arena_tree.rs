@@ -288,8 +288,16 @@ mod tests {
 
     use super::TreeArena;
 
-    #[test]
-    fn test_basic_arena() {
+    struct TestArena {
+        arena: TreeArena<i32>,
+        root_id: NodeId,
+        first_child: NodeId,
+        second_child: NodeId,
+        first_grandson: NodeId,
+        second_grandson: NodeId
+    }
+
+    fn init_test() -> TestArena {
         let arena = TreeArena::<i32>::new();
 
         assert!(arena.get_root().is_none());
@@ -319,14 +327,21 @@ mod tests {
         assert!(res.is_ok());
         let second_grandson = res.unwrap();
 
+        TestArena { arena, root_id, first_child, second_child, first_grandson, second_grandson }
+    }
+
+    #[test]
+    fn test_basic_arena() {
+        let test_arena = init_test();
+
         // test get_root
-        assert_eq!(root_id, arena.get_root().unwrap().read().unwrap().id);
+        assert_eq!(test_arena.root_id, test_arena.arena.get_root().unwrap().read().unwrap().id);
 
         // test get_children
         assert_eq!(
-            vec![first_child, second_child],
-            arena
-                .get_children(root_id)
+            vec![test_arena.first_child, test_arena.second_child],
+            test_arena.arena
+                .get_children(test_arena.root_id)
                 .unwrap()
                 .iter()
                 .map(|x| x.read().unwrap().id)
@@ -334,17 +349,17 @@ mod tests {
         );
         assert_eq!(
             Vec::<NodeId>::new(),
-            arena
-                .get_children(first_child)
+            test_arena.arena
+                .get_children(test_arena.first_child)
                 .unwrap()
                 .iter()
                 .map(|x| x.read().unwrap().id)
                 .collect_vec()
         );
         assert_eq!(
-            vec![first_grandson, second_grandson],
-            arena
-                .get_children(second_child)
+            vec![test_arena.first_grandson, test_arena.second_grandson],
+            test_arena.arena
+                .get_children(test_arena.second_child)
                 .unwrap()
                 .iter()
                 .map(|x| x.read().unwrap().id)
@@ -354,28 +369,28 @@ mod tests {
         // test get_children of missing node
         assert_eq!(
             TreeError::NodeDoesNotExist,
-            arena.get_children(40).err().unwrap()
+            test_arena.arena.get_children(40).err().unwrap()
         );
 
         // test node_list
-        let mut node_list = arena.node_list();
+        let mut node_list = test_arena.arena.node_list();
         node_list.sort();
         assert_eq!(
             vec![
-                root_id,
-                first_child,
-                second_child,
-                first_grandson,
-                second_grandson
+                test_arena.root_id,
+                test_arena.first_child,
+                test_arena.second_child,
+                test_arena.first_grandson,
+                test_arena.second_grandson
             ],
             node_list
         );
 
         // test get_parent
         assert_eq!(
-            root_id,
-            arena
-                .get_parent(first_child)
+            test_arena.root_id,
+            test_arena.arena
+                .get_parent(test_arena.first_child)
                 .unwrap()
                 .unwrap()
                 .read()
@@ -383,9 +398,9 @@ mod tests {
                 .id
         );
         assert_eq!(
-            root_id,
-            arena
-                .get_parent(second_child)
+            test_arena.root_id,
+            test_arena.arena
+                .get_parent(test_arena.second_child)
                 .unwrap()
                 .unwrap()
                 .read()
@@ -393,9 +408,9 @@ mod tests {
                 .id
         );
         assert_eq!(
-            second_child,
-            arena
-                .get_parent(first_grandson)
+            test_arena.second_child,
+            test_arena.arena
+                .get_parent(test_arena.first_grandson)
                 .unwrap()
                 .unwrap()
                 .read()
@@ -403,9 +418,9 @@ mod tests {
                 .id
         );
         assert_eq!(
-            second_child,
-            arena
-                .get_parent(second_grandson)
+            test_arena.second_child,
+            test_arena.arena
+                .get_parent(test_arena.second_grandson)
                 .unwrap()
                 .unwrap()
                 .read()
@@ -416,36 +431,36 @@ mod tests {
         // test get_parent for missing node
         assert_eq!(
             TreeError::NodeDoesNotExist,
-            arena.get_children(40).err().unwrap()
+            test_arena.arena.get_children(40).err().unwrap()
         );
 
         // test has_node
-        assert!(arena.has_node(root_id));
-        assert!(!arena.has_node(40));
+        assert!(test_arena.arena.has_node(test_arena.root_id));
+        assert!(!test_arena.arena.has_node(40));
 
         // test get_node
         assert_eq!(
-            first_child,
-            arena.get_node(first_child).unwrap().read().unwrap().id
+            test_arena.first_child,
+            test_arena.arena.get_node(test_arena.first_child).unwrap().read().unwrap().id
         );
 
         // test get_node for missing node
-        assert!(arena.get_node(40).is_none());
+        assert!(test_arena.arena.get_node(40).is_none());
 
         // test depth
-        assert_eq!(0, arena.get_node(root_id).unwrap().read().unwrap().depth);
+        assert_eq!(0, test_arena.arena.get_node(test_arena.root_id).unwrap().read().unwrap().depth);
         assert_eq!(
             1,
-            arena.get_node(first_child).unwrap().read().unwrap().depth
+            test_arena.arena.get_node(test_arena.first_child).unwrap().read().unwrap().depth
         );
         assert_eq!(
             1,
-            arena.get_node(second_child).unwrap().read().unwrap().depth
+            test_arena.arena.get_node(test_arena.second_child).unwrap().read().unwrap().depth
         );
         assert_eq!(
             2,
-            arena
-                .get_node(first_grandson)
+            test_arena.arena
+                .get_node(test_arena.first_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -453,8 +468,8 @@ mod tests {
         );
         assert_eq!(
             2,
-            arena
-                .get_node(second_grandson)
+            test_arena.arena
+                .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -464,122 +479,44 @@ mod tests {
 
     #[test]
     fn test_remove_leaf() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
+        assert_eq!(5, test_arena.arena.node_list().len());
+        let res = test_arena.arena.remove_node(test_arena.first_grandson);
         assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-        let first_grandson = res.unwrap();
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-
-        assert_eq!(5, arena.node_list().len());
-        let res = arena.remove_node(first_grandson);
-        assert!(res.is_ok());
-        assert!(arena.get_node(first_grandson).is_none());
-        assert_eq!(4, arena.node_list().len());
+        assert!(test_arena.arena.get_node(test_arena.first_grandson).is_none());
+        assert_eq!(4, test_arena.arena.node_list().len());
     }
 
     #[test]
     fn test_remove_node() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
+        assert_eq!(5, test_arena.arena.node_list().len());
+        let res = test_arena.arena.remove_node(test_arena.second_child);
         assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-        let first_grandson = res.unwrap();
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-        let second_grandson = res.unwrap();
-
-        assert_eq!(5, arena.node_list().len());
-        let res = arena.remove_node(second_child);
-        assert!(res.is_ok());
-        assert!(arena.get_node(second_child).is_none());
-        assert!(arena.get_node(first_grandson).is_none());
-        assert!(arena.get_node(second_grandson).is_none());
-        assert_eq!(2, arena.node_list().len());
+        assert!(test_arena.arena.get_node(test_arena.second_child).is_none());
+        assert!(test_arena.arena.get_node(test_arena.first_grandson).is_none());
+        assert!(test_arena.arena.get_node(test_arena.second_grandson).is_none());
+        assert_eq!(2, test_arena.arena.node_list().len());
     }
 
     #[test]
     fn test_remove_root() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
+        assert_eq!(5, test_arena.arena.node_list().len());
+        let res = test_arena.arena.remove_node(test_arena.root_id);
         assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-        let first_child = res.unwrap();
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-        let first_grandson = res.unwrap();
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-        let second_grandson = res.unwrap();
-
-        assert_eq!(5, arena.node_list().len());
-        let res = arena.remove_node(root_id);
-        assert!(res.is_ok());
-        assert!(arena.get_node(root_id).is_none());
-        assert!(arena.get_node(first_child).is_none());
-        assert!(arena.get_node(second_child).is_none());
-        assert!(arena.get_node(first_grandson).is_none());
-        assert!(arena.get_node(second_grandson).is_none());
-        assert_eq!(0, arena.node_list().len());
+        assert!(test_arena.arena.get_node(test_arena.root_id).is_none());
+        assert!(test_arena.arena.get_node(test_arena.first_child).is_none());
+        assert!(test_arena.arena.get_node(test_arena.second_child).is_none());
+        assert!(test_arena.arena.get_node(test_arena.first_grandson).is_none());
+        assert!(test_arena.arena.get_node(test_arena.second_grandson).is_none());
+        assert_eq!(0, test_arena.arena.node_list().len());
 
         // add a new root
-        let res = arena.add_node(None, 1);
+        let res = test_arena.arena.add_node(None, 1);
         assert!(res.is_ok());
     }
 
@@ -619,36 +556,9 @@ mod tests {
 
     #[test]
     fn test_extract_subtree_leaf() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
-        assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-        let second_grandson = res.unwrap();
-
-        let extracted_arena = arena.extract_subtree(second_grandson);
+        let extracted_arena = test_arena.arena.extract_subtree(test_arena.second_grandson);
 
         assert!(extracted_arena.is_ok());
 
@@ -662,8 +572,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(second_grandson)
+            test_arena.arena
+                .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -673,36 +583,9 @@ mod tests {
 
     #[test]
     fn test_extract_subtree_node() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
-        assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-        let first_child = res.unwrap();
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-        let first_grandson = res.unwrap();
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-        let second_grandson = res.unwrap();
-
-        let extracted_arena = arena.extract_subtree(second_child);
+        let extracted_arena = test_arena.arena.extract_subtree(test_arena.second_child);
 
         assert!(extracted_arena.is_ok());
 
@@ -722,8 +605,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(second_child)
+            test_arena.arena
+                .get_node(test_arena.second_child)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -736,8 +619,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(first_grandson)
+            test_arena.arena
+                .get_node(test_arena.first_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -750,8 +633,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(second_grandson)
+            test_arena.arena
+                .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -764,8 +647,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(second_child)
+            test_arena.arena
+                .get_node(test_arena.second_child)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -795,36 +678,9 @@ mod tests {
 
     #[test]
     fn test_extract_subtree_root() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
-        assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-        let first_child = res.unwrap();
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-        let first_grandson = res.unwrap();
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-        let second_grandson = res.unwrap();
-
-        let extracted_arena = arena.extract_subtree(root_id);
+        let extracted_arena = test_arena.arena.extract_subtree(test_arena.root_id);
 
         assert!(extracted_arena.is_ok());
 
@@ -844,7 +700,7 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena.get_node(root_id).unwrap().read().unwrap().attributes,
+            test_arena.arena.get_node(test_arena.root_id).unwrap().read().unwrap().attributes,
         );
 
         // verify that the other nodes are the same
@@ -855,8 +711,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(first_child)
+            test_arena.arena
+                .get_node(test_arena.first_child)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -869,8 +725,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(second_child)
+            test_arena.arena
+                .get_node(test_arena.second_child)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -883,8 +739,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(first_grandson)
+            test_arena.arena
+                .get_node(test_arena.first_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -897,8 +753,8 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena
-                .get_node(second_grandson)
+            test_arena.arena
+                .get_node(test_arena.second_grandson)
                 .unwrap()
                 .read()
                 .unwrap()
@@ -913,7 +769,7 @@ mod tests {
                 .read()
                 .unwrap()
                 .attributes,
-            arena.get_node(root_id).unwrap().read().unwrap().attributes
+            test_arena.arena.get_node(test_arena.root_id).unwrap().read().unwrap().attributes
         );
 
         // verify the parent of first_child and second_child
@@ -961,33 +817,9 @@ mod tests {
 
     #[test]
     fn test_extract_subtree_missing() {
-        let arena = TreeArena::<i32>::new();
+        let test_arena = init_test();
 
-        assert!(arena.get_root().is_none());
-
-        // Add the root node
-        let res = arena.add_node(None, 1);
-        assert!(res.is_ok());
-        let root_id = res.unwrap();
-
-        // Try to add a new root node
-        let res = arena.add_node(None, 10);
-        assert!(res.is_err());
-
-        // Add two children to the root node
-        let res = arena.add_node(Some(root_id), 10);
-        assert!(res.is_ok());
-        let res = arena.add_node(Some(root_id), 11);
-        assert!(res.is_ok());
-        let second_child = res.unwrap();
-
-        // Add two children to the second child
-        let res = arena.add_node(Some(second_child), 100);
-        assert!(res.is_ok());
-        let res = arena.add_node(Some(second_child), 101);
-        assert!(res.is_ok());
-
-        let extracted_arena = arena.extract_subtree(43);
+        let extracted_arena = test_arena.arena.extract_subtree(43);
 
         assert!(extracted_arena.is_err());
     }
