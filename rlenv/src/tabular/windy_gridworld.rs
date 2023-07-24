@@ -3,8 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use super::TabularStep;
-use crate::{tabular::TabularEnvironment, EnvironmentError};
+use crate::{Environment, Step, EnvironmentError};
 use colored::Colorize;
 
 const LEFT: i32 = 0;
@@ -205,7 +204,7 @@ impl Default for WindyGridworld {
     }
 }
 
-impl TabularEnvironment for WindyGridworld {
+impl Environment<i32, i32> for WindyGridworld {
     fn reset(&mut self) -> i32 {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
@@ -237,10 +236,12 @@ impl TabularEnvironment for WindyGridworld {
         &mut self,
         action: i32,
         #[allow(unused_variables)] rng: &mut R,
-    ) -> Result<TabularStep, crate::EnvironmentError>
+    ) -> Result<Step<i32, i32>, crate::EnvironmentError>
     where
         R: Rng + ?Sized,
     {
+        let starting_state = self.get_state_id(self.current_row, self.current_col);
+
         if !self.is_terminal(self.get_state_id(self.current_row, self.current_col)) {
             let (mut new_row, mut new_col) = self.apply_wind(self.current_row, self.current_col);
 
@@ -256,8 +257,10 @@ impl TabularEnvironment for WindyGridworld {
             self.current_col = new_col;
         }
 
-        Ok(TabularStep {
-            state: self.get_state_id(self.current_row, self.current_col),
+        Ok(Step {
+            state: starting_state,
+            action,
+            next_state: self.get_state_id(self.current_row, self.current_col),
             reward: self.get_state_reward(self.get_state_id(self.current_row, self.current_col)),
             terminated: self.is_terminal(self.get_state_id(self.current_row, self.current_col)),
             truncated: false,
@@ -296,9 +299,9 @@ impl TabularEnvironment for WindyGridworld {
 
 #[cfg(test)]
 mod tests {
-    use crate::tabular::{
-        windy_gridworld::{WindyGridworldStateType, DOWN, LEFT, RIGHT, UP},
-        TabularEnvironment,
+    use crate::{
+        tabular::windy_gridworld::{WindyGridworldStateType, DOWN, LEFT, RIGHT, UP},
+        Environment,
     };
 
     use super::WindyGridworld;
@@ -327,7 +330,7 @@ mod tests {
 
         let step = env.step(LEFT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 30);
+        assert_eq!(step.next_state, 30);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -340,7 +343,7 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 31);
+        assert_eq!(step.next_state, 31);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -353,7 +356,7 @@ mod tests {
 
         let step = env.step(DOWN, &mut rng).unwrap();
 
-        assert_eq!(step.state, 40);
+        assert_eq!(step.next_state, 40);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -366,7 +369,7 @@ mod tests {
 
         let step = env.step(UP, &mut rng).unwrap();
 
-        assert_eq!(step.state, 20);
+        assert_eq!(step.next_state, 20);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -381,7 +384,7 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 24);
+        assert_eq!(step.next_state, 24);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -400,7 +403,7 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 37);
+        assert_eq!(step.next_state, 37);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);

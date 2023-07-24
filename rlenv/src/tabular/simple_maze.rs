@@ -3,8 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use super::TabularStep;
-use crate::{tabular::TabularEnvironment, EnvironmentError};
+use crate::{Environment, Step, EnvironmentError};
 use colored::Colorize;
 
 const LEFT: i32 = 0;
@@ -185,7 +184,7 @@ impl Default for SimpleMaze {
     }
 }
 
-impl TabularEnvironment for SimpleMaze {
+impl Environment<i32, i32> for SimpleMaze {
     fn reset(&mut self) -> i32 {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
@@ -217,10 +216,12 @@ impl TabularEnvironment for SimpleMaze {
         &mut self,
         action: i32,
         #[allow(unused_variables)] rng: &mut R,
-    ) -> Result<TabularStep, crate::EnvironmentError>
+    ) -> Result<Step<i32, i32>, crate::EnvironmentError>
     where
         R: Rng + ?Sized,
     {
+        let starting_state = self.get_state_id(self.current_row, self.current_col);
+
         let mut new_row = self.current_row;
         let mut new_col = self.current_col;
         if !self.is_terminal(self.get_state_id(self.current_row, self.current_col)) {
@@ -238,8 +239,10 @@ impl TabularEnvironment for SimpleMaze {
             }
         }
 
-        Ok(TabularStep {
-            state: self.get_state_id(self.current_row, self.current_col),
+        Ok(Step {
+            state: starting_state,
+            action,
+            next_state: self.get_state_id(self.current_row, self.current_col),
             // here we use new_row and new_col because in case of cliff the reward is -100 but the current state is start
             reward: self.get_state_reward(self.get_state_id(self.current_row, self.current_col)),
             terminated: self.is_terminal(self.get_state_id(self.current_row, self.current_col)),
@@ -279,9 +282,9 @@ impl TabularEnvironment for SimpleMaze {
 
 #[cfg(test)]
 mod tests {
-    use crate::tabular::{
-        simple_maze::{SimpleMazeStateType, DOWN, LEFT, RIGHT, UP},
-        TabularEnvironment,
+    use crate::{
+        tabular::simple_maze::{SimpleMazeStateType, DOWN, LEFT, RIGHT, UP},
+        Environment,
     };
 
     use super::SimpleMaze;
@@ -310,7 +313,7 @@ mod tests {
 
         let step = env.step(LEFT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 18);
+        assert_eq!(step.next_state, 18);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -323,14 +326,14 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 19);
+        assert_eq!(step.next_state, 19);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 19);
+        assert_eq!(step.next_state, 19);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -343,7 +346,7 @@ mod tests {
 
         let step = env.step(DOWN, &mut rng).unwrap();
 
-        assert_eq!(step.state, 27);
+        assert_eq!(step.next_state, 27);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -356,7 +359,7 @@ mod tests {
 
         let step = env.step(UP, &mut rng).unwrap();
 
-        assert_eq!(step.state, 9);
+        assert_eq!(step.next_state, 9);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -371,7 +374,7 @@ mod tests {
 
         let step = env.step(UP, &mut rng).unwrap();
 
-        assert_eq!(step.state, 8);
+        assert_eq!(step.next_state, 8);
         assert_eq!(step.reward, 1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
