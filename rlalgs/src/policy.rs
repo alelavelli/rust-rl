@@ -31,7 +31,7 @@ pub trait Policy<S, A> {
     ///
     /// ## Parameters
     ///
-    /// `state`: indentifier of the state
+    /// `state`: state to predict the action
     /// `rng`: random seed
     ///
     /// ## Returns
@@ -63,8 +63,8 @@ pub trait ValuePolicy<S, A, Q> {
     ///
     /// ## Parameters
     ///
-    /// `state`: identifier of the state
-    /// `action`: identifier of the action
+    /// `state`: state 
+    /// `action`: action
     /// `value`: value of Q(s, a)
     fn update_q_entry(&mut self, state: S, action: A, value: f32);
 
