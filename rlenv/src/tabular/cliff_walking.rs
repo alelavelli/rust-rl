@@ -6,6 +6,8 @@ use rand::Rng;
 use crate::{EnvironmentError, Environment, Step};
 use colored::Colorize;
 
+use super::TabularEnvironment;
+
 const LEFT: i32 = 0;
 const DOWN: i32 = 1;
 const RIGHT: i32 = 2;
@@ -239,14 +241,6 @@ impl Environment<i32, i32> for CliffWalking {
         })
     }
 
-    fn get_number_states(&self) -> i32 {
-        self.map_dim.0 * self.map_dim.1
-    }
-
-    fn get_number_actions(&self) -> i32 {
-        self.n_actions
-    }
-
     fn render(&self) {
         println!("----");
         for row in 0..self.map_dim.0 {
@@ -266,6 +260,17 @@ impl Environment<i32, i32> for CliffWalking {
             println!();
         }
         println!("----");
+    }
+}
+
+impl TabularEnvironment for CliffWalking {
+
+    fn get_number_states(&self) -> i32 {
+        self.map_dim.0 * self.map_dim.1
+    }
+
+    fn get_number_actions(&self) -> i32 {
+        self.n_actions
     }
 }
 

@@ -37,12 +37,6 @@ pub trait Environment<S, A> {
     /// Returns if the given state is terminal or not
     fn is_terminal(&self, state: S) -> bool;
 
-    /// Returns the number of states
-    fn get_number_states(&self) -> i32;
-
-    /// Returns the number of actions
-    fn get_number_actions(&self) -> i32;
-
     /// Returns the terminal states
     fn get_terminal_states(&self) -> Vec<S>;
 
