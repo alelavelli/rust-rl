@@ -3,7 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{EnvironmentError, Environment, Step};
+use crate::{Environment, EnvironmentError, Step};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -227,7 +227,6 @@ impl Environment<i32, i32> for FrozenLake {
 }
 
 impl TabularEnvironment for FrozenLake {
-
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }
@@ -241,7 +240,7 @@ impl TabularEnvironment for FrozenLake {
 mod tests {
     use crate::{
         tabular::frozen::{FrozenLakeStateType, DOWN, LEFT, RIGHT, UP},
-        Environment
+        Environment,
     };
 
     use super::FrozenLake;

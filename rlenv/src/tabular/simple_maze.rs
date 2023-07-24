@@ -3,7 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{Environment, Step, EnvironmentError};
+use crate::{Environment, EnvironmentError, Step};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -274,9 +274,7 @@ impl Environment<i32, i32> for SimpleMaze {
     }
 }
 
-
 impl TabularEnvironment for SimpleMaze {
-
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }

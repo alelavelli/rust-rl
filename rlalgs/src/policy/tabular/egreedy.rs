@@ -1,5 +1,4 @@
-use super::TabularPolicy;
-use crate::PolicyError;
+use crate::policy::{Policy, PolicyError, ValuePolicy};
 use ndarray::{s, Array, Array1, Array2};
 use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
@@ -49,11 +48,7 @@ impl Clone for EGreedyTabularPolicy {
     }
 }
 
-impl TabularPolicy for EGreedyTabularPolicy {
-    fn get_q(&self) -> &Array2<f32> {
-        &self.q
-    }
-
+impl Policy<i32, i32> for EGreedyTabularPolicy {
     fn step<R>(&self, state: i32, rng: &mut R) -> Result<i32, PolicyError>
     where
         R: Rng + ?Sized,
@@ -83,26 +78,6 @@ impl TabularPolicy for EGreedyTabularPolicy {
         Ok(pi.sample(rng) as i32)
     }
 
-    fn set_q(&mut self, q: Array2<f32>) {
-        self.q = q
-    }
-
-    fn update_q_entry(&mut self, state: i32, action: i32, value: f32) {
-        self.q[[state as usize, action as usize]] = value;
-    }
-
-    fn get_q_value(&self, state: i32, action: i32) -> f32 {
-        self.q[[state as usize, action as usize]]
-    }
-
-    fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError> {
-        self.q
-            .slice(s![state, ..])
-            .max()
-            .map_err(|_| PolicyError::GenericError)
-            .copied()
-    }
-
     fn get_best_a(&self, state: i32) -> Result<i32, PolicyError> {
         let optimal_action: usize = self
             .q
@@ -123,6 +98,32 @@ impl TabularPolicy for EGreedyTabularPolicy {
         probabilities[optimal_action] += 1.0 - self.epsilon;
         probabilities[action as usize]
     }
+}
+
+impl ValuePolicy<i32, i32, Array2<f32>> for EGreedyTabularPolicy {
+    fn get_q(&self) -> &Array2<f32> {
+        &self.q
+    }
+
+    fn set_q(&mut self, q: Array2<f32>) {
+        self.q = q
+    }
+
+    fn update_q_entry(&mut self, state: i32, action: i32, value: f32) {
+        self.q[[state as usize, action as usize]] = value;
+    }
+
+    fn get_q_value(&self, state: i32, action: i32) -> f32 {
+        self.q[[state as usize, action as usize]]
+    }
+
+    fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError> {
+        self.q
+            .slice(s![state, ..])
+            .max()
+            .map_err(|_| PolicyError::GenericError)
+            .copied()
+    }
 
     fn expected_q_value(&self, state: i32) -> f32 {
         // update q entry using weighted q value
@@ -139,8 +140,7 @@ impl TabularPolicy for EGreedyTabularPolicy {
 mod tests {
     use ndarray::Array;
 
-    use crate::policy::tabular::egreedy::EGreedyTabularPolicy;
-    use crate::policy::tabular::TabularPolicy;
+    use crate::policy::{tabular::egreedy::EGreedyTabularPolicy, Policy, ValuePolicy};
 
     #[test]
     fn deterministic_greedy_policy_step() {

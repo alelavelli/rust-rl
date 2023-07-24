@@ -3,7 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{EnvironmentError, Environment, Step};
+use crate::{Environment, EnvironmentError, Step};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -264,7 +264,6 @@ impl Environment<i32, i32> for CliffWalking {
 }
 
 impl TabularEnvironment for CliffWalking {
-
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }
@@ -276,7 +275,10 @@ impl TabularEnvironment for CliffWalking {
 
 #[cfg(test)]
 mod tests {
-    use crate::{tabular::cliff_walking::{CliffWalkingStateType, DOWN, LEFT, RIGHT, UP}, Environment};
+    use crate::{
+        tabular::cliff_walking::{CliffWalkingStateType, DOWN, LEFT, RIGHT, UP},
+        Environment,
+    };
 
     use super::CliffWalking;
 

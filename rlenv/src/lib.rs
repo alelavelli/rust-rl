@@ -94,7 +94,6 @@ pub struct Step<S, A> {
     pub truncated: bool,
 }
 
-
 #[cfg(feature = "gymnasium")]
 pub fn hello() {
     println!("hello");
