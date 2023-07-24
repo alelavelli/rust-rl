@@ -4,6 +4,7 @@ use rand::Rng;
 use super::PolicyError;
 
 pub mod egreedy;
+pub mod mcts;
 
 /// TabularPolicy that works with tabular environments
 pub trait TabularPolicy {
