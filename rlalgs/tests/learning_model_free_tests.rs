@@ -1,7 +1,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rlalgs::generate_episode;
 use rlalgs::learn::model_free::tabular::double_qlearning;
-use rlalgs::learn::model_free::tabular::generate_tabular_episode;
 use rlalgs::learn::model_free::tabular::montecarlo;
 use rlalgs::learn::model_free::tabular::n_step_q_sigma;
 use rlalgs::learn::model_free::tabular::n_step_sarsa;
@@ -27,7 +27,7 @@ fn montecarlo_egreedy_frozen() {
     );
     let params = montecarlo::Params {
         episodes: 2000,
-        gamma: 0.999,
+        gamma: 1.0,
         first_visit_mode: false,
     };
 
@@ -43,7 +43,7 @@ fn montecarlo_egreedy_frozen() {
     policy.set_epsilon(0.0);
     let mut env = FrozenLake::new();
     let episode =
-        generate_tabular_episode(&mut policy, &mut env, Some(10), &mut rng, true, None).unwrap();
+        generate_episode(&mut policy, &mut env, Some(10), &mut rng, true, None).unwrap();
     assert_eq!(episode.states, vec![0, 4, 8, 9, 13, 14, 15]);
     assert_eq!(episode.actions, vec![1, 1, 2, 1, 2, 2]);
     assert_eq!(episode.rewards, vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
@@ -79,7 +79,7 @@ fn sarsa_windy_girdworld() {
     let mut policy = result.unwrap();
     let mut env = WindyGridworld::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -134,7 +134,7 @@ fn sarsa_cliff_walking() {
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -188,7 +188,7 @@ fn qlearning_cliff_walking() {
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -238,7 +238,7 @@ fn expected_sarsa_cliff_walking() {
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         Some(50),
@@ -288,7 +288,7 @@ fn double_qlearning_cliff_walking() {
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -343,7 +343,7 @@ fn n_step_sarsa_cliff_walking() {
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -399,7 +399,7 @@ fn n_step_expected_sarsa_cliff_walking() {
     let mut policy = result.unwrap();
     let mut env = CliffWalking::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -455,7 +455,7 @@ fn n_step_tree_backup_windy_girdworld() {
     let mut policy = result.unwrap();
     let mut env = WindyGridworld::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -480,6 +480,7 @@ fn n_step_tree_backup_windy_girdworld() {
         ]
     );
 }
+
 #[test]
 fn n_step_q_sigma_windy_girdworld() {
     let mut rng = StdRng::seed_from_u64(222);
@@ -527,7 +528,7 @@ fn n_step_q_sigma_windy_girdworld() {
     let mut policy = result.unwrap();
     let mut env = WindyGridworld::new();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,

@@ -104,13 +104,13 @@ where
             .step(action, rng)
             .map_err(LearningError::EnvironmentStep)?;
         // update model
-        model.update_step(state, action, episode_step.state, episode_step.reward);
+        model.update_step(state, action, episode_step.next_state, episode_step.reward);
 
         // Direct Learning
         let update = compute_update(
             &policy,
             &TabularStateAction { state, action },
-            episode_step.state,
+            episode_step.next_state,
             episode_step.reward,
             &params,
         )?;
@@ -158,7 +158,7 @@ where
             // if we reached terminal state we reset the environment
             state = environment.reset();
         } else {
-            state = episode_step.state;
+            state = episode_step.next_state;
         }
 
         if verbosity.render_env {

@@ -1,14 +1,11 @@
 use std::collections::HashMap;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
+use ndarray::Array2;
 use rand::Rng;
-use rlenv::tabular::TabularEnvironment;
+use rlenv::Environment;
 
-use crate::{
-    learn::LearningError,
-    learn::{model_free::tabular::generate_tabular_episode, VerbosityConfig},
-    policy::tabular::TabularPolicy,
-};
+use crate::{learn::{LearningError, VerbosityConfig}, policy::{ValuePolicy, Policy}, generate_episode};
 
 /// Parameters for montecarlo learning algorithm
 ///
@@ -39,8 +36,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: TabularPolicy,
-    E: TabularEnvironment,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    E: Environment<i32, i32>,
     R: Rng + ?Sized,
 {
     // initialize variables
@@ -51,7 +48,7 @@ where
 
     for _ in (0..params.episodes).progress_with(progress_bar) {
         // GENERATE EPISODE
-        let episode = generate_tabular_episode(
+        let episode = generate_episode(
             &mut policy,
             &mut environment,
             None,
@@ -97,7 +94,8 @@ where
 /// ## Returns
 ///
 /// true if the pair s,a is the first time it appear in the episode
-fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: usize) -> bool {
+fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: usize) -> bool 
+{
     for i in 0..t {
         if states[i] == state && actions[i] == action {
             return false;

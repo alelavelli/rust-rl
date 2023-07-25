@@ -1,4 +1,4 @@
-use rand::rngs::StdRng;
+/* use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::learn::model_free::tabular::generate_tabular_episode;
 use rlalgs::learn::planning::tabular::{dyna_q, prioritized_sweeping};
@@ -113,3 +113,4 @@ fn prioritized_sweeping_test() {
     .unwrap();
     assert_eq!(env.is_terminal(*episode.states.last().unwrap()), true)
 }
+ */

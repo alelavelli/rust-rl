@@ -70,20 +70,20 @@ where
             // Direct Learning
             let q_sa = policy.get_q_value(state, action);
             let q_max = policy
-                .get_max_q_value(episode_step.state)
+                .get_max_q_value(episode_step.next_state)
                 .map_err(LearningError::PolicyStep)?;
             let new_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
             policy.update_q_entry(state, action, new_value);
 
             // update model
-            model.update_step(state, action, episode_step.state, episode_step.reward);
+            model.update_step(state, action, episode_step.next_state, episode_step.reward);
 
             if episode_step.terminated {
                 // if we reached terminal state we reset the environment
                 state = environment.reset();
             } else {
-                state = episode_step.state;
+                state = episode_step.next_state;
             }
 
             if verbosity.render_env {
