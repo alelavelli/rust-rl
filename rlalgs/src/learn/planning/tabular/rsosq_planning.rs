@@ -1,12 +1,13 @@
 //! Random sample one step tabular Q planning algorithm
 
 use indicatif::{ProgressBar, ProgressIterator};
+use ndarray::Array2;
 use rand::Rng;
 
 use crate::{
     learn::{LearningError, VerbosityConfig},
-    model::tabular::TabularModel,
-    policy::tabular::TabularPolicy,
+    model::Model,
+    policy::{Policy, ValuePolicy},
 };
 
 /// Parameters for random-sample one-step tabular q-planning algorithm
@@ -43,8 +44,8 @@ pub fn learn<P, M, R>(
     _versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: TabularPolicy,
-    M: TabularModel,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    M: Model<i32, i32>,
     R: Rng + ?Sized,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);

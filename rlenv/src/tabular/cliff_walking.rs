@@ -3,9 +3,10 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use super::TabularStep;
-use crate::{tabular::TabularEnvironment, EnvironmentError};
+use crate::{Environment, EnvironmentError, Step};
 use colored::Colorize;
+
+use super::TabularEnvironment;
 
 const LEFT: i32 = 0;
 const DOWN: i32 = 1;
@@ -167,7 +168,7 @@ impl Default for CliffWalking {
     }
 }
 
-impl TabularEnvironment for CliffWalking {
+impl Environment<i32, i32> for CliffWalking {
     fn reset(&mut self) -> i32 {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
@@ -199,10 +200,12 @@ impl TabularEnvironment for CliffWalking {
         &mut self,
         action: i32,
         #[allow(unused_variables)] rng: &mut R,
-    ) -> Result<TabularStep, crate::EnvironmentError>
+    ) -> Result<Step<i32, i32>, crate::EnvironmentError>
     where
         R: Rng + ?Sized,
     {
+        let starting_state = self.get_state_id(self.current_row, self.current_col);
+
         let mut new_row = self.current_row;
         let mut new_col = self.current_col;
         if !self.is_terminal(self.get_state_id(self.current_row, self.current_col)) {
@@ -227,21 +230,15 @@ impl TabularEnvironment for CliffWalking {
             }
         }
 
-        Ok(TabularStep {
-            state: self.get_state_id(self.current_row, self.current_col),
+        Ok(Step {
+            state: starting_state,
+            action,
+            next_state: self.get_state_id(self.current_row, self.current_col),
             // here we use new_row and new_col because in case of cliff the reward is -100 but the current state is start
             reward: self.get_state_reward(self.get_state_id(new_row, new_col)),
             terminated: self.is_terminal(self.get_state_id(self.current_row, self.current_col)),
             truncated: false,
         })
-    }
-
-    fn get_number_states(&self) -> i32 {
-        self.map_dim.0 * self.map_dim.1
-    }
-
-    fn get_number_actions(&self) -> i32 {
-        self.n_actions
     }
 
     fn render(&self) {
@@ -266,11 +263,21 @@ impl TabularEnvironment for CliffWalking {
     }
 }
 
+impl TabularEnvironment for CliffWalking {
+    fn get_number_states(&self) -> i32 {
+        self.map_dim.0 * self.map_dim.1
+    }
+
+    fn get_number_actions(&self) -> i32 {
+        self.n_actions
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::tabular::{
-        cliff_walking::{CliffWalkingStateType, DOWN, LEFT, RIGHT, UP},
-        TabularEnvironment,
+    use crate::{
+        tabular::cliff_walking::{CliffWalkingStateType, DOWN, LEFT, RIGHT, UP},
+        Environment,
     };
 
     use super::CliffWalking;
@@ -299,7 +306,7 @@ mod tests {
 
         let step = env.step(LEFT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 30);
+        assert_eq!(step.next_state, 30);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -312,7 +319,7 @@ mod tests {
 
         let step = env.step(RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.state, 30);
+        assert_eq!(step.next_state, 30);
         assert_eq!(step.reward, -100.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -325,7 +332,7 @@ mod tests {
 
         let step = env.step(DOWN, &mut rng).unwrap();
 
-        assert_eq!(step.state, 30);
+        assert_eq!(step.next_state, 30);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -338,7 +345,7 @@ mod tests {
 
         let step = env.step(UP, &mut rng).unwrap();
 
-        assert_eq!(step.state, 20);
+        assert_eq!(step.next_state, 20);
         assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
@@ -347,14 +354,13 @@ mod tests {
     #[test]
     fn test_step_goal() {
         let mut env = CliffWalking::new();
-        env.render();
         env.current_row = 2;
         env.current_col = 9;
         let mut rng = rand::thread_rng();
 
         let step = env.step(DOWN, &mut rng).unwrap();
 
-        assert_eq!(step.state, 39);
+        assert_eq!(step.next_state, 39);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
