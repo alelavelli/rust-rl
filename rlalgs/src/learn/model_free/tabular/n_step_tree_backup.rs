@@ -1,11 +1,12 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
+use ndarray::Array2;
 use rand::Rng;
-use rlenv::tabular::TabularEnvironment;
+use rlenv::{tabular::TabularEnvironment, Environment};
 use std::cmp::min;
 
 use crate::{
     learn::{LearningError, VerbosityConfig},
-    policy::tabular::TabularPolicy,
+    policy::{Policy, ValuePolicy},
 };
 
 /// Parameters for n step tree backup learning algorithm
@@ -43,8 +44,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: TabularPolicy,
-    E: TabularEnvironment,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    E: Environment<i32, i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     let n = params.n as f32;
@@ -79,7 +80,7 @@ where
                     .step(actions[t as usize], rng)
                     .map_err(LearningError::EnvironmentStep)?;
                 // store next state and reward
-                states.push(episode_step.state);
+                states.push(episode_step.next_state);
                 rewards.push(episode_step.reward);
                 // if the episode is terminated then set capital T to the next value of t so that
                 // we update the policy Q
@@ -88,7 +89,7 @@ where
                 } else {
                     // otherwise do the next step
                     let next_action = policy
-                        .step(episode_step.state, rng)
+                        .step(episode_step.next_state, rng)
                         .map_err(LearningError::PolicyStep)?;
                     actions.push(next_action);
                 }

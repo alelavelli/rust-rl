@@ -1,14 +1,15 @@
-use crate::TabularStateAction;
 use indicatif::{ProgressBar, ProgressIterator};
 use keyed_priority_queue::KeyedPriorityQueue;
+use ndarray::Array2;
 use ordered_float::OrderedFloat;
 use rand::Rng;
-use rlenv::tabular::TabularEnvironment;
+use rlenv::{tabular::TabularEnvironment, Environment};
 
 use crate::{
     learn::{LearningError, VerbosityConfig},
-    model::tabular::TabularModel,
-    policy::tabular::TabularPolicy,
+    model::Model,
+    policy::{Policy, ValuePolicy},
+    StateAction,
 };
 
 /// Parameters for dyna-q learning algorithm
@@ -32,13 +33,13 @@ pub struct Params {
 /// Compute policy update
 fn compute_update<P>(
     policy: &P,
-    state_action: &TabularStateAction,
+    state_action: &StateAction<i32, i32>,
     next_state: i32,
     reward: f32,
     params: &Params,
 ) -> Result<f32, LearningError>
 where
-    P: TabularPolicy,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
 {
     let q_sa = policy.get_q_value(state_action.state, state_action.action);
     let q_max = policy
@@ -49,9 +50,9 @@ where
 
 /// if the requirement is met then the state, action pair is put on queue
 fn put_on_queue(
-    state_action: TabularStateAction,
+    state_action: StateAction<i32, i32>,
     update: f32,
-    priority_queue: &mut KeyedPriorityQueue<TabularStateAction, OrderedFloat<f32>>,
+    priority_queue: &mut KeyedPriorityQueue<StateAction<i32, i32>, OrderedFloat<f32>>,
     params: &Params,
 ) {
     if update.abs() > params.tolerance {
@@ -83,15 +84,15 @@ pub fn learn<P, E, R, M>(
     verbosity: &VerbosityConfig,
 ) -> Result<(P, M), LearningError>
 where
-    P: TabularPolicy,
-    E: TabularEnvironment,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    E: Environment<i32, i32> + TabularEnvironment,
     R: Rng + ?Sized,
-    M: TabularModel,
+    M: Model<i32, i32>,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 
     // let priority queue
-    let mut priority_queue: KeyedPriorityQueue<TabularStateAction, OrderedFloat<f32>> =
+    let mut priority_queue: KeyedPriorityQueue<StateAction<i32, i32>, OrderedFloat<f32>> =
         KeyedPriorityQueue::new();
 
     // init environment
@@ -104,18 +105,18 @@ where
             .step(action, rng)
             .map_err(LearningError::EnvironmentStep)?;
         // update model
-        model.update_step(state, action, episode_step.state, episode_step.reward);
+        model.update_step(state, action, episode_step.next_state, episode_step.reward);
 
         // Direct Learning
         let update = compute_update(
             &policy,
-            &TabularStateAction { state, action },
-            episode_step.state,
+            &StateAction { state, action },
+            episode_step.next_state,
             episode_step.reward,
             &params,
         )?;
         put_on_queue(
-            TabularStateAction { state, action },
+            StateAction { state, action },
             update,
             &mut priority_queue,
             &params,
@@ -158,7 +159,7 @@ where
             // if we reached terminal state we reset the environment
             state = environment.reset();
         } else {
-            state = episode_step.state;
+            state = episode_step.next_state;
         }
 
         if verbosity.render_env {

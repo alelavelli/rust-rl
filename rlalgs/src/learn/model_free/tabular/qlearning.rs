@@ -1,10 +1,11 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
+use ndarray::Array2;
 use rand::Rng;
-use rlenv::tabular::TabularEnvironment;
+use rlenv::{tabular::TabularEnvironment, Environment};
 
 use crate::{
     learn::{LearningError, VerbosityConfig},
-    policy::tabular::TabularPolicy,
+    policy::{Policy, ValuePolicy},
 };
 
 /// Q Learning parameters
@@ -44,8 +45,8 @@ pub fn learn<P, E, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: TabularPolicy,
-    E: TabularEnvironment,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    E: Environment<i32, i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     // Q function initialization
@@ -78,14 +79,14 @@ where
             // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * max_a Q(S', a) - Q(S, A) ]
             let q_sa = policy.get_q_value(state, action);
             let q_max = policy
-                .get_max_q_value(episode_step.state)
+                .get_max_q_value(episode_step.next_state)
                 .map_err(LearningError::PolicyStep)?;
             let new_q_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
             policy.update_q_entry(state, action, new_q_value);
 
             // set S = S'
-            state = episode_step.state;
+            state = episode_step.next_state;
 
             if verbosity.render_env {
                 environment.render();

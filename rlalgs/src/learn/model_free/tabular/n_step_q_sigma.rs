@@ -1,11 +1,12 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
+use ndarray::Array2;
 use rand::Rng;
-use rlenv::tabular::TabularEnvironment;
+use rlenv::{tabular::TabularEnvironment, Environment};
 use std::cmp::min;
 
 use crate::{
     learn::{LearningError, VerbosityConfig},
-    policy::tabular::TabularPolicy,
+    policy::{Policy, ValuePolicy},
 };
 
 pub struct SigmaInput {
@@ -53,9 +54,9 @@ pub fn learn<P, B, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: TabularPolicy,
-    B: TabularPolicy,
-    E: TabularEnvironment,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    B: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    E: Environment<i32, i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     let n = params.n as f32;
@@ -98,7 +99,7 @@ where
                     .step(actions[t as usize], rng)
                     .map_err(LearningError::EnvironmentStep)?;
                 // store next state and reward
-                states.push(episode_step.state);
+                states.push(episode_step.next_state);
                 rewards.push(episode_step.reward);
                 // if the episode is terminated then set capital T to the next value of t so that
                 // we update the policy Q
@@ -107,21 +108,21 @@ where
                 } else {
                     // otherwise do the next step
                     let next_action = behaviour
-                        .step(episode_step.state, rng)
+                        .step(episode_step.next_state, rng)
                         .map_err(LearningError::PolicyStep)?;
                     actions.push(next_action);
 
                     // select and store sigma t + 1
                     sigmas.push(params.sigma_fn.as_ref()(SigmaInput {
-                        state: episode_step.state,
+                        state: episode_step.next_state,
                         action: next_action,
                         step: t as i32,
                     }));
 
                     // store importance retio
                     rhos.push(
-                        policy.action_prob(episode_step.state, next_action)
-                            / behaviour.action_prob(episode_step.state, next_action),
+                        policy.action_prob(episode_step.next_state, next_action)
+                            / behaviour.action_prob(episode_step.next_state, next_action),
                     );
                 }
             }

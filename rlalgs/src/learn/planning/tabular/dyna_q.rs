@@ -1,11 +1,12 @@
 use indicatif::{ProgressBar, ProgressIterator};
+use ndarray::Array2;
 use rand::Rng;
-use rlenv::tabular::TabularEnvironment;
+use rlenv::{tabular::TabularEnvironment, Environment};
 
 use crate::{
     learn::{LearningError, VerbosityConfig},
-    model::tabular::TabularModel,
-    policy::tabular::TabularPolicy,
+    model::Model,
+    policy::{Policy, ValuePolicy},
 };
 
 /// Parameters for dyna-q learning algorithm
@@ -49,10 +50,10 @@ pub fn learn<P, E, R, M>(
     verbosity: &VerbosityConfig,
 ) -> Result<(P, M), LearningError>
 where
-    P: TabularPolicy,
-    E: TabularEnvironment,
+    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
+    E: Environment<i32, i32> + TabularEnvironment,
     R: Rng + ?Sized,
-    M: TabularModel,
+    M: Model<i32, i32>,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 
@@ -70,20 +71,20 @@ where
             // Direct Learning
             let q_sa = policy.get_q_value(state, action);
             let q_max = policy
-                .get_max_q_value(episode_step.state)
+                .get_max_q_value(episode_step.next_state)
                 .map_err(LearningError::PolicyStep)?;
             let new_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
             policy.update_q_entry(state, action, new_value);
 
             // update model
-            model.update_step(state, action, episode_step.state, episode_step.reward);
+            model.update_step(state, action, episode_step.next_state, episode_step.reward);
 
             if episode_step.terminated {
                 // if we reached terminal state we reset the environment
                 state = environment.reset();
             } else {
-                state = episode_step.state;
+                state = episode_step.next_state;
             }
 
             if verbosity.render_env {
