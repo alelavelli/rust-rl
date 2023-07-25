@@ -1,12 +1,13 @@
-/* use rand::rngs::StdRng;
+use rand::rngs::StdRng;
 use rand::SeedableRng;
-use rlalgs::learn::model_free::tabular::generate_tabular_episode;
+use rlalgs::generate_episode;
 use rlalgs::learn::planning::tabular::{dyna_q, prioritized_sweeping};
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::tabular::deterministic::DeterministicModel;
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlenv::tabular::simple_maze::SimpleMaze;
 use rlenv::tabular::TabularEnvironment;
+use rlenv::Environment;
 
 #[test]
 fn dyna_q_test() {
@@ -49,7 +50,7 @@ fn dyna_q_test() {
     let mut env = SimpleMaze::new();
     let (mut policy, mut _model) = result.unwrap();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -102,7 +103,7 @@ fn prioritized_sweeping_test() {
     let mut env = SimpleMaze::new();
     let (mut policy, mut _model) = result.unwrap();
     policy.set_epsilon(0.0);
-    let episode = generate_tabular_episode(
+    let episode = generate_episode(
         &mut policy,
         &mut env,
         None,
@@ -113,4 +114,3 @@ fn prioritized_sweeping_test() {
     .unwrap();
     assert_eq!(env.is_terminal(*episode.states.last().unwrap()), true)
 }
- */

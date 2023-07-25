@@ -4,7 +4,8 @@ use rand::Rng;
 use rlenv::{tabular::TabularEnvironment, Environment};
 
 use crate::{
-    learn::{LearningError, VerbosityConfig}, policy::{Policy, ValuePolicy},
+    learn::{LearningError, VerbosityConfig},
+    policy::{Policy, ValuePolicy},
 };
 
 /// Q Learning parameters

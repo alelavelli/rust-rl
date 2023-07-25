@@ -42,8 +42,7 @@ fn montecarlo_egreedy_frozen() {
 
     policy.set_epsilon(0.0);
     let mut env = FrozenLake::new();
-    let episode =
-        generate_episode(&mut policy, &mut env, Some(10), &mut rng, true, None).unwrap();
+    let episode = generate_episode(&mut policy, &mut env, Some(10), &mut rng, true, None).unwrap();
     assert_eq!(episode.states, vec![0, 4, 8, 9, 13, 14, 15]);
     assert_eq!(episode.actions, vec![1, 1, 2, 1, 2, 2]);
     assert_eq!(episode.rewards, vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);

@@ -5,7 +5,11 @@ use ndarray::Array2;
 use rand::Rng;
 use rlenv::Environment;
 
-use crate::{learn::{LearningError, VerbosityConfig}, policy::{ValuePolicy, Policy}, generate_episode};
+use crate::{
+    generate_episode,
+    learn::{LearningError, VerbosityConfig},
+    policy::{Policy, ValuePolicy},
+};
 
 /// Parameters for montecarlo learning algorithm
 ///
@@ -94,8 +98,7 @@ where
 /// ## Returns
 ///
 /// true if the pair s,a is the first time it appear in the episode
-fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: usize) -> bool 
-{
+fn is_first_visit(state: i32, action: i32, states: &[i32], actions: &[i32], t: usize) -> bool {
     for i in 0..t {
         if states[i] == state && actions[i] == action {
             return false;

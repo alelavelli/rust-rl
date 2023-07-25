@@ -5,7 +5,8 @@ use rlenv::{tabular::TabularEnvironment, Environment};
 use std::cmp::min;
 
 use crate::{
-    learn::{LearningError, VerbosityConfig}, policy::{Policy, ValuePolicy},
+    learn::{LearningError, VerbosityConfig},
+    policy::{Policy, ValuePolicy},
 };
 
 pub struct SigmaInput {

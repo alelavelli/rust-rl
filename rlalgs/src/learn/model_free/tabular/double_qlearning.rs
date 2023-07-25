@@ -5,7 +5,8 @@ use rand_distr::Distribution;
 use rlenv::{tabular::TabularEnvironment, Environment};
 
 use crate::{
-    learn::{LearningError, VerbosityConfig}, policy::{Policy, ValuePolicy},
+    learn::{LearningError, VerbosityConfig},
+    policy::{Policy, ValuePolicy},
 };
 /// Double Q Learning parameters
 ///

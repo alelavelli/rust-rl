@@ -9,7 +9,7 @@ use rlenv::EnvironmentError;
 use crate::{policy::PolicyError, EpisodeGenerationError};
 
 pub mod model_free;
-//pub mod planning;
+pub mod planning;
 
 #[derive(thiserror::Error)]
 pub enum LearningError {

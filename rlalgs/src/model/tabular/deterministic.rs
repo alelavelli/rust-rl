@@ -7,7 +7,10 @@ use std::collections::{HashMap, HashSet};
 use ndarray::{Array, Array2};
 use rand::{seq::IteratorRandom, Rng};
 
-use crate::{StateAction, model::{Model, ModelStep, SampleSA}};
+use crate::{
+    model::{Model, ModelStep, SampleSA},
+    StateAction,
+};
 
 pub struct DeterministicModel {
     // transition matrix provides the next state for state s and action a
@@ -74,7 +77,7 @@ impl Model<i32, i32> for DeterministicModel {
 mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
-    use crate::{StateAction, model::Model};
+    use crate::{model::Model, StateAction};
 
     use super::DeterministicModel;
 

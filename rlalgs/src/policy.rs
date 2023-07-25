@@ -63,7 +63,7 @@ pub trait ValuePolicy<S, A, Q> {
     ///
     /// ## Parameters
     ///
-    /// `state`: state 
+    /// `state`: state
     /// `action`: action
     /// `value`: value of Q(s, a)
     fn update_q_entry(&mut self, state: S, action: A, value: f32);

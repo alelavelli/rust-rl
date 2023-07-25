@@ -68,7 +68,7 @@ where
     E: Environment<S, A>,
     R: Rng + ?Sized,
     S: Copy,
-    A: Copy
+    A: Copy,
 {
     // trace variables
     let mut states: Vec<S> = Vec::new();
