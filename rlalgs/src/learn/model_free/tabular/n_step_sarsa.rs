@@ -36,7 +36,6 @@ pub struct Params {
 /// - `params`: algorithm parameters
 /// - `rng`: random generator
 /// - `verbosity`: verbosity configuration
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
     mut policy: P,
     mut environment: E,
@@ -45,8 +44,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     let n = params.n as f32;

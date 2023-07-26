@@ -44,9 +44,9 @@ pub fn learn<P, M, R>(
     _versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    M: Model<i32, i32>,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     R: Rng + ?Sized,
+    M: Model<State = i32, Action = i32>,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 

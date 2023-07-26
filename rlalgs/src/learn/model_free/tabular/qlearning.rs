@@ -45,8 +45,8 @@ pub fn learn<P, E, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     // Q function initialization

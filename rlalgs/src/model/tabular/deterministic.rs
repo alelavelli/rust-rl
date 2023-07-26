@@ -36,15 +36,24 @@ impl DeterministicModel {
     }
 }
 
-impl Model<i32, i32> for DeterministicModel {
-    fn predict_step(&self, state: i32, action: i32) -> ModelStep<i32> {
+impl Model for DeterministicModel {
+    type State = i32;
+    type Action = i32;
+
+    fn predict_step(&self, state: Self::State, action: Self::Action) -> ModelStep<Self::State> {
         ModelStep {
             state: self.transition_matrix[[state as usize, action as usize]],
             reward: self.reward_matrix[[state as usize, action as usize]],
         }
     }
 
-    fn update_step(&mut self, state: i32, action: i32, next_state: i32, reward: f32) {
+    fn update_step(
+        &mut self,
+        state: Self::State,
+        action: Self::Action,
+        next_state: Self::State,
+        reward: f32,
+    ) {
         self.experienced_samples.insert((state, action));
         self.transition_matrix[[state as usize, action as usize]] = next_state;
         self.reward_matrix[[state as usize, action as usize]] = reward;
@@ -55,7 +64,7 @@ impl Model<i32, i32> for DeterministicModel {
         }
     }
 
-    fn sample_sa<R>(&self, rng: &mut R) -> Option<SampleSA<i32, i32>>
+    fn sample_sa<R>(&self, rng: &mut R) -> Option<SampleSA<Self::State, Self::Action>>
     where
         R: Rng + ?Sized,
     {
@@ -68,7 +77,10 @@ impl Model<i32, i32> for DeterministicModel {
             })
     }
 
-    fn get_preceding_sa(&self, state: i32) -> Option<&Vec<StateAction<i32, i32>>> {
+    fn get_preceding_sa(
+        &self,
+        state: Self::State,
+    ) -> Option<&Vec<StateAction<Self::State, Self::Action>>> {
         self.precedessors.get(&state)
     }
 }

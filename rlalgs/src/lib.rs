@@ -64,8 +64,8 @@ pub fn generate_episode<P, E, R, S, A>(
     progress_bar: Option<&MultiProgress>,
 ) -> Result<Episode<S, A>, EpisodeGenerationError>
 where
-    P: Policy<S, A>,
-    E: Environment<S, A>,
+    P: Policy<State = S, Action = A>,
+    E: Environment<State = S, Action = A>,
     R: Rng + ?Sized,
     S: Copy,
     A: Copy,

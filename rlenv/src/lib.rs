@@ -30,15 +30,18 @@ impl Debug for EnvironmentError {
 /// Trait for Tabular Environments
 ///
 /// It defines basic interafces an environment must have.
-pub trait Environment<S, A> {
+pub trait Environment {
+    type State;
+    type Action;
+
     /// Initialize the environment providing the starting state
-    fn reset(&mut self) -> S;
+    fn reset(&mut self) -> Self::State;
 
     /// Returns if the given state is terminal or not
-    fn is_terminal(&self, state: S) -> bool;
+    fn is_terminal(&self, state: Self::State) -> bool;
 
     /// Returns the terminal states
-    fn get_terminal_states(&self) -> Vec<S>;
+    fn get_terminal_states(&self) -> Vec<Self::State>;
 
     /// step
     ///
@@ -49,7 +52,11 @@ pub trait Environment<S, A> {
     /// ## Returns
     ///
     /// `observation`: identifier of the state
-    fn step<R>(&mut self, action: A, rng: &mut R) -> Result<Step<S, A>, EnvironmentError>
+    fn step<R>(
+        &mut self,
+        action: Self::Action,
+        rng: &mut R,
+    ) -> Result<Step<Self::State, Self::Action>, EnvironmentError>
     where
         R: Rng + ?Sized;
 

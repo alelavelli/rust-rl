@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
-use ndarray::Array2;
 use rand::Rng;
 use rlenv::Environment;
 
@@ -40,8 +39,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32>,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32>,
+    E: Environment<State = i32, Action = i32>,
     R: Rng + ?Sized,
 {
     // initialize variables

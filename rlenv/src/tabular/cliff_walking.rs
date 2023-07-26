@@ -168,14 +168,17 @@ impl Default for CliffWalking {
     }
 }
 
-impl Environment<i32, i32> for CliffWalking {
-    fn reset(&mut self) -> i32 {
+impl Environment for CliffWalking {
+    type State = i32;
+    type Action = i32;
+
+    fn reset(&mut self) -> Self::State {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
         self.get_state_id(self.current_row, self.current_col)
     }
 
-    fn is_terminal(&self, state: i32) -> bool {
+    fn is_terminal(&self, state: Self::State) -> bool {
         let (row, col) = self.to_row_col(state);
         matches!(
             self.map[[row as usize, col as usize]],
@@ -183,8 +186,8 @@ impl Environment<i32, i32> for CliffWalking {
         )
     }
 
-    fn get_terminal_states(&self) -> Vec<i32> {
-        let mut terminal_states = Vec::<i32>::new();
+    fn get_terminal_states(&self) -> Vec<Self::State> {
+        let mut terminal_states = Vec::<Self::State>::new();
         for row in 0..self.map_dim.0 {
             for col in 0..self.map_dim.1 {
                 let state = self.get_state_id(row, col);
@@ -198,9 +201,9 @@ impl Environment<i32, i32> for CliffWalking {
 
     fn step<R>(
         &mut self,
-        action: i32,
+        action: Self::Action,
         #[allow(unused_variables)] rng: &mut R,
-    ) -> Result<Step<i32, i32>, crate::EnvironmentError>
+    ) -> Result<Step<Self::State, Self::Action>, crate::EnvironmentError>
     where
         R: Rng + ?Sized,
     {

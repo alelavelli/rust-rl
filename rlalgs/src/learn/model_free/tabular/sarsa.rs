@@ -42,7 +42,6 @@ pub struct Params {
 /// into account how likely each action is under the current policy
 /// $$ Q(S, A) \leftarrow Q(S_t, A_t) + \alpha \left[ R + \gamma \sum_a \pi(a | S_{t+1}) Q(S_{t+1}, a) - Q(S_t, A_t) \right] $$
 ///
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
     mut policy: P,
     mut environment: E,
@@ -51,8 +50,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     // Q function initialization

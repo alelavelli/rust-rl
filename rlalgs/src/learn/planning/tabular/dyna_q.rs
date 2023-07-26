@@ -40,7 +40,6 @@ pub struct Params {
 /// - `params`: algorithm parameters
 /// - `rng`: random generator
 /// - `verbosity`: verbosity configuration
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R, M>(
     mut policy: P,
     mut environment: E,
@@ -50,10 +49,10 @@ pub fn learn<P, E, R, M>(
     verbosity: &VerbosityConfig,
 ) -> Result<(P, M), LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
-    M: Model<i32, i32>,
+    M: Model<State = i32, Action = i32>,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 
