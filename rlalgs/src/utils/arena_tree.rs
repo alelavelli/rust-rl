@@ -18,12 +18,12 @@ pub type NodeId = i32;
 /// The attributes contains actual attributes of the node as is implemented
 /// as generic.
 pub struct Node<T> {
-    id: NodeId,
-    parent: Option<NodeId>,
-    children: Vec<NodeId>,
+    pub id: NodeId,
+    pub parent: Option<NodeId>,
+    pub children: Vec<NodeId>,
     // depth of the node inside the tree. 0 if it is root
-    depth: i32,
-    attributes: T,
+    pub depth: i32,
+    pub attributes: T,
 }
 
 /// TreeArena struct that owns the nodes
