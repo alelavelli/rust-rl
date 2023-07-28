@@ -7,6 +7,7 @@ use std::{
 
 use ndarray::Array1;
 use ndarray_stats::QuantileExt;
+use rand::Rng;
 use rlenv::{DiscreteActionEnvironmentEssay, EnvironmentEssay};
 
 use crate::{
@@ -110,6 +111,7 @@ pub enum RootActionCriterion {
 /// - `tree`: internal tree that is built during the iterations
 /// - `env_essay`: component that contains information about the environment like is a state is terminal or what are the
 /// available action in that given state
+/// - `gamma`: discount factor
 pub struct MCTSPolicy<T, P, M, S, A, E>
 where
     T: NodeSelector<State = S, Action = A>,
@@ -128,6 +130,7 @@ where
     verbosity: VerbosityConfig,
     tree: TreeArena<NodeAttributes<S, A>>,
     env_essay: E,
+    gamma: f32
 }
 
 impl<T, P, M, S, A, E> MCTSPolicy<T, P, M, S, A, E>
@@ -208,8 +211,40 @@ where
     /// a complete episode is run with actions selected by the rollout policy. The result
     /// is a Monte Carlo trial with actions selected first by the tree policy and beyond
     /// the tree by the rollout policy
-    fn rollout(&self, node: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>) -> f32 {
-        todo!()
+    fn rollout<R>(&self, node: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>, rng: &mut R) -> f32 
+    where
+        R: Rng + ?Sized
+        {
+        // if the node is a terminal one there is nothing to do, so we return 0.0 as return
+        if node.read().unwrap().attributes.terminal {
+            0.0
+        } else {
+            let (
+                mut current_state,
+                mut is_terminal,
+                mut current_depth
+            ) = {
+                let read_guard = node.read().unwrap();
+                (
+                    read_guard.attributes.state,
+                    read_guard.attributes.terminal,
+                    read_guard.depth
+                )
+            };
+            
+            let mut ret = 0.0;
+            while (current_depth < self.max_depth) & !is_terminal
+            {
+                let action = self.rollout_policy.step(current_state, rng).unwrap();
+                let model_step = self.model.predict_step(current_state, action);
+                current_depth += 1;
+                current_state = model_step.state;
+                is_terminal = self.env_essay.is_terminal(&current_state);
+                ret += self.gamma.powi(current_depth) * model_step.reward;
+            }
+
+            ret
+        }
     }
 
     /// Backup phase
@@ -242,14 +277,15 @@ where
     where
         R: rand::Rng + ?Sized,
     {
-        for i in 0..self.iterations {
+        /* for i in 0..self.iterations {
             let node = self.selection();
             let ret = self.rollout();
             self.backup();
         }
 
-        let action = self.choose_action();
-        Ok(action)
+        let action = self.choose_action(); */
+        //Ok(action)
+        todo!()
     }
 
     fn get_best_a(&self, state: S) -> Result<A, crate::policy::PolicyError> {
