@@ -91,7 +91,6 @@ pub struct Episode<S, A> {
 /// `truncated`: whether a truncation condition outside the scope of the MDP is satisfied.
 /// Typically a timelimit, but could also be used to indicate agent physically going out of bounds.
 /// Can be used to end the episode prematurely before a `terminal state` is reached.
-
 pub struct Step<S, A> {
     pub state: S,
     pub action: A,
@@ -99,6 +98,33 @@ pub struct Step<S, A> {
     pub reward: f32,
     pub terminated: bool,
     pub truncated: bool,
+}
+
+/// Evironment Essay
+///
+/// This struct contains knowlegde of an environment that can be used to obtain information
+/// without accessing the environment itself.
+///
+/// For instance the environment essay knows if a state is a terminal one or what are the
+/// available action for a given state.
+pub trait EnvironmentEssay {
+    type State;
+    type Action;
+
+    /// Returns if the state is terminal or not
+    fn is_terminal(&self, state: &Self::State) -> bool;
+}
+
+/// Expand the previous trait adding functions for the discrete action case
+///
+/// Indeed, the list of available actions for a state is only possilbe for the
+/// discrete case.
+pub trait DiscreteActionEnvironmentEssay {
+    type State;
+    type Action;
+
+    /// Returns the available actions in the state
+    fn available_actions(&self, state: &Self::State) -> Vec<Self::Action>;
 }
 
 #[cfg(feature = "gymnasium")]

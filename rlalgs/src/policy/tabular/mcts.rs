@@ -1,9 +1,20 @@
-use std::{error::Error, fmt::Debug, marker::PhantomData, sync::{Arc, RwLock}};
+use std::{
+    error::Error,
+    fmt::Debug,
+    marker::PhantomData,
+    sync::{Arc, RwLock},
+};
 
 use ndarray::Array1;
 use ndarray_stats::QuantileExt;
+use rlenv::{DiscreteActionEnvironmentEssay, EnvironmentEssay};
 
-use crate::{learn::VerbosityConfig, model::Model, policy::Policy, utils::arena_tree};
+use crate::{
+    learn::VerbosityConfig,
+    model::Model,
+    policy::Policy,
+    utils::arena_tree::{self, TreeArena},
+};
 
 /// Attributes of the MCTS node that is used as value inside the Tree data structure
 ///
@@ -15,7 +26,6 @@ use crate::{learn::VerbosityConfig, model::Model, policy::Policy, utils::arena_t
 /// - `value`: value of this node
 /// - `action_visits`: number of visits for each available action
 /// - `action_values`: value associated to each avaiable action
-/// - `ucb_max_value`: the maximum possibile value used for computing ucbs
 pub struct NodeAttributes<S, A> {
     state: S,
     actions: Vec<A>,
@@ -25,7 +35,6 @@ pub struct NodeAttributes<S, A> {
     value: f32,
     action_visits: Array1<u32>,
     action_values: Array1<f32>,
-    ucb_max_value: f32,
 }
 
 impl<S, A> NodeAttributes<S, A> {
@@ -34,7 +43,6 @@ impl<S, A> NodeAttributes<S, A> {
         actions: Vec<A>,
         terminal: bool,
         parent_source_action: Option<A>,
-        ucb_max_value: f32,
     ) -> NodeAttributes<S, A> {
         let n_actions = actions.len();
         NodeAttributes {
@@ -46,7 +54,6 @@ impl<S, A> NodeAttributes<S, A> {
             value: 0.0,
             action_visits: Array1::zeros(n_actions),
             action_values: Array1::zeros(n_actions),
-            ucb_max_value,
         }
     }
 }
@@ -94,37 +101,139 @@ pub enum RootActionCriterion {
 /// - `rollout_policy`: policy used during the rollout phase
 /// - `model`: transition model used during rollout
 /// - `iterations`: number of iterations before returning the chosen action
-/// - `max_horizon`: the maximum horizon to simulate forward steps
+/// - `max_depth`: the maximum horizon to simulate forward steps
 ///     (i.e., the maximum depth of the tree)
 /// - `root_action_criterion`: choose the most played action at the root
 ///     or the one with highest score. It is an Enum
-/// - `scale_values`: whether to rescale the values of each node by their maximum value
 /// - `reuse_tree`: whether to start MCTS from the old sub-tree whenever the new state is close to its old prediction
-/// - `reuse_threshold`: threshold for deciding when to reuse the old tree (l2-norm deviation between new/old state)
 /// - `verbosity`: verbosity configuration struct
-pub struct MCTSPolicy<T, P, M, S, A>
+/// - `tree`: internal tree that is built during the iterations
+/// - `env_essay`: component that contains information about the environment like is a state is terminal or what are the
+/// available action in that given state
+pub struct MCTSPolicy<T, P, M, S, A, E>
 where
-    T: Policy<State = S, Action = A>,
+    T: NodeSelector<State = S, Action = A>,
     P: Policy<State = S, Action = A>,
     M: Model<State = S, Action = A>,
+    E: EnvironmentEssay<State = S, Action = A>
+        + DiscreteActionEnvironmentEssay<State = S, Action = A>,
 {
     tree_policy: T,
     rollout_policy: P,
     model: M,
     iterations: i32,
-    max_horizon: i32,
+    max_depth: i32,
     root_action_criterion: RootActionCriterion,
-    scale_value: bool,
     reuse_tree: bool,
-    reuse_threshold: f32,
     verbosity: VerbosityConfig,
+    tree: TreeArena<NodeAttributes<S, A>>,
+    env_essay: E,
 }
 
-impl<T, P, M, S, A> Policy for MCTSPolicy<T, P, M, S, A>
+impl<T, P, M, S, A, E> MCTSPolicy<T, P, M, S, A, E>
 where
-    T: Policy<State = S, Action = A>,
+    T: NodeSelector<State = S, Action = A>,
     P: Policy<State = S, Action = A>,
     M: Model<State = S, Action = A>,
+    E: EnvironmentEssay<State = S, Action = A>
+        + DiscreteActionEnvironmentEssay<State = S, Action = A>,
+{
+    /// Selection phase
+    ///
+    /// Starting at the root node, a tree policy based on the action values
+    /// attached to the edges of the tree traverses the tree to select a leaf node.
+    ///
+    /// It contains also the *Expansion* phase in which the tree is expanded from the
+    /// selected leaf node by adding one or more child nodes reached from the selected
+    /// node via unexplored actions.
+    ///
+    /// # Parameters
+    ///
+    /// - `node`: where start the tree traversal. Note that this could be any node and
+    /// not the root of the tree
+    fn selection(
+        &self,
+        node: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>,
+    ) -> Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>> {
+        let mut current = Arc::clone(&node);
+        // We loop until we reach maximum depth of the tree or if the node is a terminal one
+        while {
+            let read_guard = current.read().unwrap();
+            (read_guard.depth < self.max_depth) & !read_guard.attributes.terminal
+        } {
+            // we use the tree policy to select the action and the model to compute the next state
+            // at first, we check for expansions by choosing non played actions
+            let expansion_action = self.tree_policy.expansion_action(current).unwrap();
+
+            let (action, actual_expansion) = {
+                if let Some(action) = expansion_action {
+                    (action, true)
+                } else {
+                    (self.tree_policy.select_action(current).unwrap(), false)
+                }
+            };
+
+            let model_step = self
+                .model
+                .predict_step(current.read().unwrap().attributes.state, action);
+
+            // we add the new tree to the arena as a child of node
+            let new_node_id = self
+                .tree
+                .add_node(
+                    Some(current.read().unwrap().id),
+                    NodeAttributes::new(
+                        model_step.state,
+                        self.env_essay.available_actions(&model_step.state),
+                        self.env_essay.is_terminal(&model_step.state),
+                        Some(action),
+                    ),
+                )
+                .unwrap();
+
+            current = self.tree.get_node(new_node_id).unwrap();
+            // If the chosen action has no visits because of expansions we terminate the loop
+            // and we return that node
+            if actual_expansion {
+                break;
+            }
+        }
+
+        current
+    }
+
+    /// Simulation phase
+    ///
+    /// From the selected node, or from one of its newly-added child nodes, simulation of
+    /// a complete episode is run with actions selected by the rollout policy. The result
+    /// is a Monte Carlo trial with actions selected first by the tree policy and beyond
+    /// the tree by the rollout policy
+    fn rollout(&self, node: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>) -> f32 {
+        todo!()
+    }
+
+    /// Backup phase
+    ///
+    /// the return generated by the simulated episode is backed up to update, or to
+    /// initialize, the action values attached to the edges of the tree traversed by
+    /// the tree policy in this iteration of MCTS. No values are saved for the states
+    /// and actions visited by the rollout policy beyond the tree.
+    fn backup() {
+        todo!()
+    }
+
+    fn choose_action() -> A {
+        todo!()
+    }
+}
+
+impl<T, P, M, S, A, E> Policy for MCTSPolicy<T, P, M, S, A, E>
+where
+    T: NodeSelector<State = S, Action = A>,
+    P: Policy<State = S, Action = A>,
+    M: Model<State = S, Action = A>,
+    E: EnvironmentEssay<State = S, Action = A>
+        + DiscreteActionEnvironmentEssay<State = S, Action = A>,
 {
     type State = S;
     type Action = A;
@@ -133,7 +242,14 @@ where
     where
         R: rand::Rng + ?Sized,
     {
-        todo!()
+        for i in 0..self.iterations {
+            let node = self.selection();
+            let ret = self.rollout();
+            self.backup();
+        }
+
+        let action = self.choose_action();
+        Ok(action)
     }
 
     fn get_best_a(&self, state: S) -> Result<A, crate::policy::PolicyError> {
@@ -153,7 +269,15 @@ pub trait NodeSelector {
     type State;
     type Action;
 
-    fn select_node(
+    /// Returns an action obtained with expansion
+    ///
+    /// If no expansion is available then it is returned None
+    fn expansion_action(
+        &self,
+        node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
+    ) -> Result<Option<Self::Action>, MCTSError>;
+
+    fn select_action(
         &self,
         node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
     ) -> Result<Self::Action, MCTSError>;
@@ -183,10 +307,10 @@ where
     type State = S;
     type Action = A;
 
-    fn select_node(
+    fn expansion_action(
         &self,
         node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
-    ) -> Result<Self::Action, MCTSError> {
+    ) -> Result<Option<Self::Action>, MCTSError> {
         let read_guard = node.read().unwrap();
         // First of all, if there is some action that is never visited we return it
         let no_visit_actions: Vec<&A> = read_guard
@@ -198,19 +322,32 @@ where
             .map(|(_, a)| a)
             .collect();
         if !no_visit_actions.is_empty() {
-            Ok(*no_visit_actions[0])
+            Ok(Some(*no_visit_actions[0]))
         } else {
-            // compute bounds and return the action with the highest bound
-            let bounds = read_guard.attributes.action_values.clone()
-                + read_guard.attributes.ucb_max_value
-                    * self.exploration
-                    * ((read_guard.attributes.visits as f32).log10()
-                        / node.read().unwrap().attributes.action_visits.mapv(|x| x as f32))
-                    .mapv(|x| x.sqrt());
-            println!("{:?}", bounds);
-            let idx = bounds.argmax().unwrap();
-            Ok(read_guard.attributes.actions[idx] as Self::Action)
+            Ok(None)
         }
+    }
+
+    fn select_action(
+        &self,
+        node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
+    ) -> Result<Self::Action, MCTSError> {
+        let read_guard = node.read().unwrap();
+
+        // compute bounds and return the action with the highest bound
+        let bounds = read_guard.attributes.action_values.clone()
+            + self.exploration
+                * ((read_guard.attributes.visits as f32).log10()
+                    / node
+                        .read()
+                        .unwrap()
+                        .attributes
+                        .action_visits
+                        .mapv(|x| x as f32))
+                .mapv(|x| x.sqrt());
+        println!("{:?}", bounds);
+        let idx = bounds.argmax().unwrap();
+        Ok(read_guard.attributes.actions[idx] as Self::Action)
     }
 }
 
@@ -235,13 +372,13 @@ impl Debug for MCTSError {
 
 #[cfg(test)]
 mod test {
-    use std::{vec, sync::Arc};
+    use std::{sync::Arc, vec};
 
     use ndarray::Array1;
 
     use crate::utils::arena_tree::{self, TreeArena};
 
-    use super::{NodeAttributes, UCBSelector, NodeSelector};
+    use super::{NodeAttributes, NodeSelector, UCBSelector};
 
     #[test]
     fn test_ucb_selector() {
@@ -252,13 +389,7 @@ mod test {
         let _ = arena
             .add_node(
                 None,
-                NodeAttributes::new(
-                    0,
-                    vec![0, 1, 2],
-                    false,
-                    None,
-                    1.0,
-                )
+                NodeAttributes::new(0, vec![0, 1, 2], false, None, 1.0),
             )
             .unwrap();
 
@@ -266,14 +397,14 @@ mod test {
 
         // Check intial exploration, if the visit counts are equal to 0 then the selector
         // choses the first action without visits
-        assert_eq!(selector.select_node(Arc::clone(&node)).unwrap(), 0);
+        assert_eq!(selector.select_action(Arc::clone(&node)).unwrap(), 0);
 
         // change action 0 visit count
         node.write().unwrap().attributes.action_visits[0] = 1;
-        assert_eq!(selector.select_node(Arc::clone(&node)).unwrap(), 1);
+        assert_eq!(selector.select_action(Arc::clone(&node)).unwrap(), 1);
 
         node.write().unwrap().attributes.action_visits[1] = 1;
-        assert_eq!(selector.select_node(Arc::clone(&node)).unwrap(), 2);
+        assert_eq!(selector.select_action(Arc::clone(&node)).unwrap(), 2);
 
         node.write().unwrap().attributes.action_visits[2] = 1;
 
@@ -281,13 +412,12 @@ mod test {
         node.write().unwrap().attributes.action_values = Array1::from(vec![1.0, 0.0, 0.0]);
         let tot_visits = node.read().unwrap().attributes.action_visits.sum();
         node.write().unwrap().attributes.visits = tot_visits;
-        assert_eq!(selector.select_node(Arc::clone(&node)).unwrap(), 0);
+        assert_eq!(selector.select_action(Arc::clone(&node)).unwrap(), 0);
 
         node.write().unwrap().attributes.action_values = Array1::from(vec![2.0, 1.0, 0.0]);
         node.write().unwrap().attributes.action_visits = Array1::from(vec![500, 1, 4]);
         let tot_visits = node.read().unwrap().attributes.action_visits.sum();
         node.write().unwrap().attributes.visits = tot_visits;
-        assert_eq!(selector.select_node(Arc::clone(&node)).unwrap(), 1);
-
+        assert_eq!(selector.select_action(Arc::clone(&node)).unwrap(), 1);
     }
 }
