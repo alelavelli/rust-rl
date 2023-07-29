@@ -59,7 +59,7 @@ fn dyna_q_test() {
         None,
     )
     .unwrap();
-    assert_eq!(env.is_terminal(*episode.states.last().unwrap()), true)
+    assert_eq!(env.is_terminal(episode.states.last().unwrap()), true)
 }
 
 #[test]
@@ -112,5 +112,5 @@ fn prioritized_sweeping_test() {
         None,
     )
     .unwrap();
-    assert_eq!(env.is_terminal(*episode.states.last().unwrap()), true)
+    assert_eq!(env.is_terminal(episode.states.last().unwrap()), true)
 }

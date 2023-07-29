@@ -77,7 +77,7 @@ where
                 let sa_returns = returns.entry((states[t], actions[t])).or_insert(Vec::new());
                 sa_returns.push(g);
                 let new_q_value: f32 = sa_returns.iter().sum::<f32>() / sa_returns.len() as f32;
-                policy.update_q_entry(states[t], actions[t], new_q_value);
+                policy.update_q_entry(&states[t], &actions[t], new_q_value);
             }
         }
     }

@@ -59,16 +59,16 @@ where
         };
 
         // 2 get next state and reward
-        let next_step_sample = model.predict_step(state, action);
+        let next_step_sample = model.predict_step(&state, &action);
 
         // 3 appy one-step tabular Q-learning
-        let q_sa = policy.get_q_value(state, action);
+        let q_sa = policy.get_q_value(&state, &action);
         let q_max = policy
-            .get_max_q_value(next_step_sample.state)
+            .get_max_q_value(&next_step_sample.state)
             .map_err(LearningError::PolicyStep)?;
         let new_value =
             q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
-        policy.update_q_entry(state, action, new_value);
+        policy.update_q_entry(&state, &action, new_value);
     }
 
     Ok(policy)

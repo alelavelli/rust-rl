@@ -54,7 +54,7 @@ where
     // therefore we set the value for each terminal state to 0
     for terminal_state in environment.get_terminal_states() {
         for i in 0..environment.get_number_actions() {
-            policy.update_q_entry(terminal_state, i, 0.0);
+            policy.update_q_entry(&terminal_state, &i, 0.0);
         }
     }
     let multiprogress_bar = MultiProgress::new();
@@ -68,22 +68,24 @@ where
         // loop until is S is terminal
         loop {
             // choose action from S with policy
-            let action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+            let action = policy
+                .step(&state, rng)
+                .map_err(LearningError::PolicyStep)?;
 
             step_number += 1;
             // take action A and observer R and S'
             let episode_step = environment
-                .step(action, rng)
+                .step(&action, rng)
                 .map_err(LearningError::EnvironmentStep)?;
 
             // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * max_a Q(S', a) - Q(S, A) ]
-            let q_sa = policy.get_q_value(state, action);
+            let q_sa = policy.get_q_value(&state, &action);
             let q_max = policy
-                .get_max_q_value(episode_step.next_state)
+                .get_max_q_value(&episode_step.next_state)
                 .map_err(LearningError::PolicyStep)?;
             let new_q_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
-            policy.update_q_entry(state, action, new_q_value);
+            policy.update_q_entry(&state, &action, new_q_value);
 
             // set S = S'
             state = episode_step.next_state;

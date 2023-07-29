@@ -41,9 +41,9 @@ fn compute_update<P>(
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
 {
-    let q_sa = policy.get_q_value(state_action.state, state_action.action);
+    let q_sa = policy.get_q_value(&state_action.state, &state_action.action);
     let q_max = policy
-        .get_max_q_value(next_state)
+        .get_max_q_value(&next_state)
         .map_err(LearningError::PolicyStep)?;
     Ok(reward + params.gamma * q_max - q_sa)
 }
@@ -99,12 +99,19 @@ where
 
     for _ in (0..params.n_iterations).progress_with(progress_bar) {
         // choose action from S with policy
-        let action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+        let action = policy
+            .step(&state, rng)
+            .map_err(LearningError::PolicyStep)?;
         let episode_step = environment
-            .step(action, rng)
+            .step(&action, rng)
             .map_err(LearningError::EnvironmentStep)?;
         // update model
-        model.update_step(state, action, episode_step.next_state, episode_step.reward);
+        model.update_step(
+            &state,
+            &action,
+            &episode_step.next_state,
+            episode_step.reward,
+        );
 
         // Direct Learning
         let update = compute_update(
@@ -129,12 +136,12 @@ where
                 break;
             }
             let queue_sa = priority_queue.pop().unwrap().0;
-            let model_step = model.predict_step(queue_sa.state, queue_sa.action);
+            let model_step = model.predict_step(&queue_sa.state, &queue_sa.action);
 
-            let q_sa = policy.get_q_value(queue_sa.state, queue_sa.action);
+            let q_sa = policy.get_q_value(&queue_sa.state, &queue_sa.action);
             policy.update_q_entry(
-                queue_sa.state,
-                queue_sa.action,
+                &queue_sa.state,
+                &queue_sa.action,
                 q_sa + params.step_size
                     * compute_update(
                         &policy,
@@ -146,8 +153,8 @@ where
             );
 
             // loop for all S,A predicted to lead to S
-            for preceding_sa in model.get_preceding_sa(queue_sa.state).unwrap() {
-                let step = model.predict_step(preceding_sa.state, preceding_sa.action);
+            for preceding_sa in model.get_preceding_sa(&queue_sa.state).unwrap() {
+                let step = model.predict_step(&preceding_sa.state, &preceding_sa.action);
                 let update =
                     compute_update(&policy, preceding_sa, step.state, step.reward, &params)?;
                 put_on_queue(*preceding_sa, update, &mut priority_queue, &params);

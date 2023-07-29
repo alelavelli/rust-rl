@@ -41,15 +41,15 @@ pub trait Policy {
     /// ## Returns
     ///
     /// `action`: identifier of the action wrapped in Result
-    fn step<R>(&self, state: Self::State, rng: &mut R) -> Result<Self::Action, PolicyError>
+    fn step<R>(&self, state: &Self::State, rng: &mut R) -> Result<Self::Action, PolicyError>
     where
         R: Rng + ?Sized;
 
     /// Return best action
-    fn get_best_a(&self, state: Self::State) -> Result<Self::Action, PolicyError>;
+    fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError>;
 
     /// Return the probability to take action in the state
-    fn action_prob(&self, state: Self::State, action: Self::Action) -> f32;
+    fn action_prob(&self, state: &Self::State, action: &Self::Action) -> f32;
 }
 
 /// Value Policy trait
@@ -74,16 +74,16 @@ pub trait ValuePolicy {
     /// `state`: state
     /// `action`: action
     /// `value`: value of Q(s, a)
-    fn update_q_entry(&mut self, state: Self::State, action: Self::Action, value: f32);
+    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32);
 
     /// Return q value of state and action
-    fn get_q_value(&self, state: Self::State, action: Self::Action) -> f32;
+    fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32;
 
     /// Return the value of the best action even if it does not represent the policy action
     ///
     /// max_a { Q(S, a) }
-    fn get_max_q_value(&self, state: Self::State) -> Result<f32, PolicyError>;
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError>;
 
     /// Return expected value for a state
-    fn expected_q_value(&self, state: Self::State) -> f32;
+    fn expected_q_value(&self, state: &Self::State) -> f32;
 }

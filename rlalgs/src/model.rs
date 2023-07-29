@@ -34,7 +34,7 @@ pub trait Model {
     ///
     /// - `state`: identifier of the state
     /// - `action`: identifier of the action
-    fn predict_step(&self, state: Self::State, action: Self::Action) -> ModelStep<Self::State>;
+    fn predict_step(&self, state: &Self::State, action: &Self::Action) -> ModelStep<Self::State>;
 
     /// update the model giving the step information
     ///
@@ -46,9 +46,9 @@ pub trait Model {
     /// - `reward`: obtained reward taking the action in the state
     fn update_step(
         &mut self,
-        state: Self::State,
-        action: Self::Action,
-        next_state: Self::State,
+        state: &Self::State,
+        action: &Self::Action,
+        next_state: &Self::State,
         reward: f32,
     );
 
@@ -60,6 +60,6 @@ pub trait Model {
     /// Returns states that precede the given state
     fn get_preceding_sa(
         &self,
-        state: Self::State,
+        state: &Self::State,
     ) -> Option<&Vec<StateAction<Self::State, Self::Action>>>;
 }

@@ -121,14 +121,14 @@ where
         step_number += 1;
         // get action from policy
         action = policy
-            .step(state, rng)
+            .step(&state, rng)
             .map_err(EpisodeGenerationError::PolicyStep)?;
         // record s_t, a_t pair
         states.push(state);
         actions.push(action);
         // make environment step
         let episode_step = environment
-            .step(action, rng)
+            .step(&action, rng)
             .map_err(EpisodeGenerationError::EnvironmentStep)?;
         state = episode_step.next_state;
         reward = episode_step.reward;
