@@ -113,6 +113,9 @@ pub trait EnvironmentEssay {
 
     /// Returns if the state is terminal or not
     fn is_terminal(&self, state: &Self::State) -> bool;
+
+    /// Returns the reward of the step
+    fn compute_reward(&self, state: &Self::State, action: &Self::Action, next_state: &Self::State) -> f32;
 }
 
 /// Expand the previous trait adding functions for the discrete action case
