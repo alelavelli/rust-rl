@@ -3,7 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{Environment, EnvironmentError, Step, EnvironmentEssay};
+use crate::{Environment, EnvironmentError, Step, EnvironmentEssay, DiscreteActionEnvironmentEssay};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -250,6 +250,16 @@ impl EnvironmentEssay for FrozenLake {
 
     fn compute_reward(&self, _state: &Self::State, _action: &Self::Action, next_state: &Self::State) -> f32 {
         self.get_state_reward(next_state)
+    }
+}
+
+impl DiscreteActionEnvironmentEssay for FrozenLake {
+    type State = i32;
+
+    type Action = i32;
+
+    fn available_actions(&self, _state: &Self::State) -> Vec<Self::Action> {
+        vec![LEFT, RIGHT, UP, DOWN]
     }
 }
 
