@@ -147,6 +147,33 @@ where
     S: Clone,
     A: Clone
 {
+    pub fn new(
+        tree_policy: T, 
+        rollout_policy: P,
+        model: M,
+        iterations: i32,
+        max_depth: i32,
+        root_action_criterion: RootActionCriterion,
+        reuse_tree: bool,
+        verbosity: VerbosityConfig,
+        env_essay: E,
+        gamma: f32
+    ) -> MCTSPolicy<T, P, M, S, A, E> {
+        MCTSPolicy { 
+            tree_policy,
+            rollout_policy,
+            model,
+            iterations,
+            max_depth,
+            root_action_criterion,
+            reuse_tree,
+            verbosity,
+            tree: RefCell::new(arena_tree::TreeArena::<NodeAttributes::<S, A>>::new()),
+            env_essay,
+            gamma 
+        }
+    }
+
     /// Selection phase
     ///
     /// Starting at the root node, a tree policy based on the action values
@@ -415,7 +442,7 @@ pub struct UCBSelector<S, A> {
 }
 
 impl<S, A> UCBSelector<S, A> {
-    fn new(exploration: f32) -> UCBSelector<S, A> {
+    pub fn new(exploration: f32) -> UCBSelector<S, A> {
         UCBSelector {
             exploration,
             marker_s: PhantomData::<S>,
