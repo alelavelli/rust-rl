@@ -1,5 +1,3 @@
-use rand::rngs::StdRng;
-use rand::SeedableRng;
 use rlalgs::generate_episode;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::tabular::deterministic::DeterministicModel;
@@ -11,7 +9,6 @@ use rlenv::Environment;
 
 #[test]
 fn mcts_test() {
-    let mut rng = StdRng::seed_from_u64(222);
 
     // Create environment
     let env = SimpleMaze::new();
@@ -33,8 +30,10 @@ fn mcts_test() {
         env.get_number_actions() as usize,
     );
 
+    let env_essay = SimpleMaze::new();
+
     // Create policy
-    let policy = mcts::MCTSPolicy::new(
+    let mut policy = mcts::MCTSPolicy::new(
         mcts::UCBSelector::new(1.0),
         rollout_policy,
         model,
