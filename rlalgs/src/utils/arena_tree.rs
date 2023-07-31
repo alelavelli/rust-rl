@@ -48,6 +48,13 @@ impl<T> TreeArena<T> {
         }
     }
 
+    // delete all the nodes in the arena tree
+    pub fn reset(&self) {
+        *self.map.write().unwrap() = HashMap::new();
+        *self.global_counter.write().unwrap() = 0;
+        *self.root.write().unwrap() = None;
+    }
+
     /// Generate new id in the arena and delete the previous one
     fn generate_id(&self) -> NodeId {
         *self.global_counter.write().unwrap() += 1;

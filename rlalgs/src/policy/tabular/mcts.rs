@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fmt::Debug,
     marker::PhantomData,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock}, cell::RefCell,
 };
 
 use ndarray::Array1;
@@ -64,7 +64,7 @@ impl<S, A> NodeAttributes<S, A> {
 
 pub enum RootActionCriterion {
     MostPlayed,
-    HisghestScore,
+    HighestScore,
 }
 
 /// Monte Carlo Tree Search for Tabular Data
@@ -132,7 +132,7 @@ where
     root_action_criterion: RootActionCriterion,
     reuse_tree: bool,
     verbosity: VerbosityConfig,
-    tree: TreeArena<NodeAttributes<S, A>>,
+    tree: RefCell<TreeArena<NodeAttributes<S, A>>>,
     env_essay: E,
     gamma: f32,
 }
@@ -145,6 +145,7 @@ where
     E: EnvironmentEssay<State = S, Action = A>
         + DiscreteActionEnvironmentEssay<State = S, Action = A>,
     S: Clone,
+    A: Clone
 {
     /// Selection phase
     ///
@@ -208,6 +209,7 @@ where
                 let is_terminal = self.env_essay.is_terminal(&model_step.state);
                 let new_node_id = self
                     .tree
+                    .borrow()
                     .add_node(
                         Some(current.read().unwrap().id),
                         NodeAttributes::new(
@@ -220,12 +222,12 @@ where
                     )
                     .unwrap();
 
-                current = self.tree.get_node(new_node_id).unwrap();
+                current = self.tree.borrow().get_node(new_node_id).unwrap();
                 break;
             } else {
                 // otherwise, the next current node is the child of the node with index
                 // equal to the action id
-                let next_node = Arc::clone(&self.tree.get_children(current.read().unwrap().id).unwrap()[action_id]);
+                let next_node = Arc::clone(&self.tree.borrow().get_children(current.read().unwrap().id).unwrap()[action_id]);
                 current = next_node;
             }
         }
@@ -299,7 +301,7 @@ where
         let mut child = leaf;
 
         while parent_id.is_some() {
-            let parent = self.tree.get_node(parent_id.unwrap()).unwrap();
+            let parent = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
             let mut parent_write_guard = parent.write().unwrap();
 
             parent_write_guard.attributes.visits += 1;
@@ -314,14 +316,24 @@ where
             };
 
             // get ready for a new loop. The parent become the child
-            child = self.tree.get_node(parent_id.unwrap()).unwrap();
+            child = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
             parent_id = child.read().unwrap().parent;
         }
 
     }
 
-    fn choose_action() -> A {
-        todo!()
+    fn choose_action(&self, root: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>) -> A {
+        let chose_action_id = match self.root_action_criterion {
+            RootActionCriterion::HighestScore => {
+                root.read().unwrap().attributes.action_values.argmax().unwrap()
+            },
+            RootActionCriterion::MostPlayed => {
+                root.read().unwrap().attributes.action_visits.argmax().unwrap()
+            },
+        };
+        root.read().unwrap().attributes.actions[chose_action_id].clone()
+
+        
     }
 }
 
@@ -333,6 +345,7 @@ where
     E: EnvironmentEssay<State = S, Action = A>
         + DiscreteActionEnvironmentEssay<State = S, Action = A>,
     S: Clone,
+    A: Clone
 {
     type State = S;
     type Action = A;
@@ -340,16 +353,27 @@ where
     fn step<R>(&self, state: &S, rng: &mut R) -> Result<A, crate::policy::PolicyError>
     where
         R: rand::Rng + ?Sized,
-    {
-        /* for i in 0..self.iterations {
-            let node = self.selection();
-            let ret = self.rollout();
-            self.backup();
+    {   
+        self.tree.borrow_mut().reset();
+        let root_id = self.tree.borrow_mut().add_node(
+            None,
+            NodeAttributes::new(
+                state.clone(),
+                self.env_essay.available_actions(state),
+                self.env_essay.is_terminal(state), 
+                None,
+                None
+            )
+        ).unwrap();
+        let root = self.tree.borrow().get_node(root_id).unwrap();
+        for i in 0..self.iterations {
+            let node = self.selection(Arc::clone(&root));
+            let ret = self.rollout(Arc::clone(&node), rng);
+            self.backup(Arc::clone(&node), ret);
         }
 
-        let action = self.choose_action(); */
-        //Ok(action)
-        todo!()
+        let action = self.choose_action(Arc::clone(&root));
+        Ok(action)
     }
 
     fn get_best_a(&self, state: &S) -> Result<A, crate::policy::PolicyError> {
