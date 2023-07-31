@@ -3,7 +3,7 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{Environment, EnvironmentError, Step};
+use crate::{Environment, EnvironmentError, Step, EnvironmentEssay};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -229,7 +229,7 @@ impl Environment for WindyGridworld {
         for row in 0..self.map_dim.0 {
             for col in 0..self.map_dim.1 {
                 let state = self.get_state_id(&row, &col);
-                if self.is_terminal(&state) {
+                if Environment::is_terminal(self, &state) {
                     terminal_states.push(state);
                 }
             }
@@ -247,7 +247,7 @@ impl Environment for WindyGridworld {
     {
         let starting_state = self.get_state_id(&self.current_row, &self.current_col);
 
-        if !self.is_terminal(&self.get_state_id(&self.current_row, &self.current_col)) {
+        if !Environment::is_terminal(self, &self.get_state_id(&self.current_row, &self.current_col)) {
             let (mut new_row, mut new_col) = self.apply_wind(self.current_row, self.current_col);
 
             match *action {
@@ -267,7 +267,7 @@ impl Environment for WindyGridworld {
             action: *action,
             next_state: self.get_state_id(&self.current_row, &self.current_col),
             reward: self.get_state_reward(&self.get_state_id(&self.current_row, &self.current_col)),
-            terminated: self.is_terminal(&self.get_state_id(&self.current_row, &self.current_col)),
+            terminated: Environment::is_terminal(self, &self.get_state_id(&self.current_row, &self.current_col)),
             truncated: false,
         })
     }
@@ -301,6 +301,20 @@ impl TabularEnvironment for WindyGridworld {
 
     fn get_number_actions(&self) -> i32 {
         self.n_actions
+    }
+}
+
+
+impl EnvironmentEssay for WindyGridworld {
+    type State = i32;
+    type Action = i32;
+
+    fn is_terminal(&self, state: &Self::State) -> bool {
+        Environment::is_terminal(self, state)
+    }
+
+    fn compute_reward(&self, _state: &Self::State, _action: &Self::Action, next_state: &Self::State) -> f32 {
+        self.get_state_reward(next_state)
     }
 }
 
