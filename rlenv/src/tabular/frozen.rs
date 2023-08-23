@@ -227,6 +227,10 @@ impl Environment for FrozenLake {
         }
         println!("----");
     }
+
+    fn set_state(&mut self, state: &Self::State) {
+        (self.current_row, self.current_col) = self.to_row_col(state);
+    }
 }
 
 impl TabularEnvironment for FrozenLake {
