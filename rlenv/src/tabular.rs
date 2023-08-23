@@ -2,6 +2,7 @@ pub mod cliff_walking;
 pub mod frozen;
 pub mod simple_maze;
 pub mod windy_gridworld;
+pub mod terror_maze;
 
 /// Tabular environment add methods to Tabular specific case.
 ///
