@@ -64,6 +64,9 @@ pub trait Environment {
     ///
     /// shows the environment to the console
     fn render(&self);
+
+    /// Set the environment to the state
+    fn set_state(&mut self, state: &Self::State);
 }
 
 /// Episode
