@@ -105,8 +105,8 @@ impl<T> TreeArena<T> {
             } // unlock here the map
 
             if let Some(parent_node) = parent {
-                let parent_node = self.get_node(parent_node);
-                parent_node.unwrap().write().unwrap().children.push(new_id);
+                let parent_node = self.get_node(parent_node).unwrap();
+                parent_node.write().unwrap().children.push(new_id);
             }
 
             if !root_is_present {

@@ -230,15 +230,20 @@ where
                 .model
                 .predict_step(&current.read().unwrap().attributes.state, &action);
 
+            // todo!("You need to handle the selfloop in a state and the repetition of the same state in the tree");
+
             // if there is an expansion then we add the new tree to the arena as a child of node 
             if actual_expansion {
                 let available_action = self.env_essay.available_actions(&model_step.state);
                 let is_terminal = self.env_essay.is_terminal(&model_step.state);
+                let current_node_id = {
+                    current.read().unwrap().id
+                };
                 let new_node_id = self
                     .tree
                     .borrow()
                     .add_node(
-                        Some(current.read().unwrap().id),
+                        Some(current_node_id),
                         NodeAttributes::new(
                             model_step.state,
                             available_action,
@@ -315,7 +320,9 @@ where
     /// and actions visited by the rollout policy beyond the tree.
     fn backup(&self, leaf: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>, ret: f32) {
         // the value of the leaf is equal to the return of the rollout
-        leaf.write().unwrap().attributes.value = ret;
+        {
+            leaf.write().unwrap().attributes.value = ret;
+        }
 
         /* 
         then we go up to each parent and we update their value
@@ -324,23 +331,23 @@ where
             - child: the child node that has the updated value
         */
 
-        let mut parent_id = leaf.read().unwrap().parent;
+        let mut parent_id = {leaf.read().unwrap().parent};
         let mut child = leaf;
 
         while parent_id.is_some() {
-            let parent = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
+            {let parent = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
             let mut parent_write_guard = parent.write().unwrap();
-
+            
             parent_write_guard.attributes.visits += 1;
             parent_write_guard.attributes.action_visits[child.read().unwrap().attributes.parent_source_action_id.unwrap()] += 1;
             parent_write_guard.attributes.action_values[child.read().unwrap().attributes.parent_source_action_id.unwrap()] = {
                 self.env_essay.compute_reward(
-                    &parent.read().unwrap().attributes.state,
+                    &parent_write_guard.attributes.state,
                     child.read().unwrap().attributes.parent_source_action.as_ref().unwrap(),
                    &child.read().unwrap().attributes.state,
                 )
-                + self.gamma.powi(parent.read().unwrap().depth + 1) * child.read().unwrap().attributes.value
-            };
+                + self.gamma.powi(parent_write_guard.depth + 1) * child.read().unwrap().attributes.value
+            };}
 
             // get ready for a new loop. The parent become the child
             child = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
@@ -381,18 +388,22 @@ where
     where
         R: rand::Rng + ?Sized,
     {   
-        self.tree.borrow_mut().reset();
-        let root_id = self.tree.borrow_mut().add_node(
-            None,
-            NodeAttributes::new(
-                state.clone(),
-                self.env_essay.available_actions(state),
-                self.env_essay.is_terminal(state), 
+        let root = {
+            let tree_ref = self.tree.borrow();
+            tree_ref.reset();
+            let root_id = tree_ref.add_node(
                 None,
-                None
-            )
-        ).unwrap();
-        let root = self.tree.borrow().get_node(root_id).unwrap();
+                NodeAttributes::new(
+                    state.clone(),
+                    self.env_essay.available_actions(state),
+                    self.env_essay.is_terminal(state), 
+                    None,
+                    None
+                )
+            ).unwrap();
+            tree_ref.get_node(root_id).unwrap()
+        };
+        
         for i in 0..self.iterations {
             let node = self.selection(Arc::clone(&root));
             let ret = self.rollout(Arc::clone(&node), rng);
