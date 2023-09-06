@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    fmt::Debug,
+    fmt::{Debug, Display},
     marker::PhantomData,
     sync::{Arc, RwLock}, cell::RefCell,
 };
@@ -122,7 +122,8 @@ where
     M: Model<State = S, Action = A>,
     E: EnvironmentEssay<State = S, Action = A>
         + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone,
+    S: Clone + Display + Debug,
+    A: Display + Debug
 {
     tree_policy: T,
     rollout_policy: P,
@@ -144,8 +145,8 @@ where
     M: Model<State = S, Action = A>,
     E: EnvironmentEssay<State = S, Action = A>
         + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone,
-    A: Clone
+    S: Clone + Display + Debug,
+    A: Clone + Display + Debug
 {
     pub fn new(
         tree_policy: T, 
@@ -378,8 +379,8 @@ where
     M: Model<State = S, Action = A>,
     E: EnvironmentEssay<State = S, Action = A>
         + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone,
-    A: Clone
+    S: Clone + Display + Debug,
+    A: Clone + Display + Debug
 {
     type State = S;
     type Action = A;
@@ -509,7 +510,6 @@ where
                         .action_visits
                         .mapv(|x| x as f32))
                 .mapv(|x| x.sqrt());
-        println!("{:?}", bounds);
         let idx = bounds.argmax().unwrap();
         Ok((read_guard.attributes.actions[idx] as Self::Action, idx))
     }

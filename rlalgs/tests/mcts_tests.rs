@@ -102,5 +102,6 @@ fn mcts_test() {
         None,
     )
     .unwrap();
-    assert_eq!(env.is_terminal(episode.states.last().unwrap()), true)
+    assert_eq!(env.is_terminal(episode.states.last().unwrap()), true);
+    assert_eq!(*episode.states.last().unwrap(), 20);
 }

@@ -3,6 +3,8 @@
 //! The module contains the implementations of algorithms that
 //! learn the environment dynamics
 
+use std::fmt::{Debug, Display};
+
 use rand::Rng;
 
 use crate::StateAction;
@@ -10,7 +12,8 @@ use crate::StateAction;
 pub mod tabular;
 
 /// Struct returned by the model
-pub struct ModelStep<S> {
+#[derive(Debug)]
+pub struct ModelStep<S: Debug + Display> {
     pub state: S,
     pub reward: f32,
 }
@@ -25,7 +28,7 @@ pub struct SampleSA<S, A> {
 ///
 /// defines methods a model must have
 pub trait Model {
-    type State;
+    type State: Debug + Display;
     type Action;
 
     /// Predicts the next state and reward given a state, action pair

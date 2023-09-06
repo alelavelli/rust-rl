@@ -62,6 +62,7 @@ impl fmt::Display for TerrorMazeStateType {
 /// ## Rewards
 ///
 ///   - Reach goal (G): +1
+///   - Spearwall state: -1
 ///   - Any other step: 0
 ///
 /// The suggested discount factor gamma is 0.95
@@ -121,7 +122,7 @@ impl TerrorMaze {
                     TerrorMazeStateType::Normal,
                     TerrorMazeStateType::Normal,
                     TerrorMazeStateType::Normal,
-                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
                     TerrorMazeStateType::Normal,
                     TerrorMazeStateType::SpearWall,
                 ],
@@ -134,7 +135,7 @@ impl TerrorMaze {
                     TerrorMazeStateType::Normal,
                     TerrorMazeStateType::Normal,
                     TerrorMazeStateType::Normal,
-                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
                     TerrorMazeStateType::Normal,
                     TerrorMazeStateType::SpearWall,
                 ],
@@ -208,6 +209,7 @@ impl TerrorMaze {
     fn get_state_reward(&self, state: &i32) -> f32 {
         match self.get_state_type(state) {
             TerrorMazeStateType::Goal => 1.0,
+            TerrorMazeStateType::SpearWall => -1.0,
             _ => 0.0,
         }
     }
