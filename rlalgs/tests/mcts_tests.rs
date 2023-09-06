@@ -5,12 +5,12 @@ use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::{Model, ModelStep};
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
 use rlalgs::policy::tabular::mcts;
+use rlenv::tabular::terror_maze::TerrorMaze;
 use rlenv::tabular::TabularEnvironment;
 use rlenv::Environment;
-use rlenv::tabular::terror_maze::TerrorMaze;
 
 struct TerrorMazeModelWrapper {
-    env: RefCell<TerrorMaze>
+    env: RefCell<TerrorMaze>,
 }
 
 impl Model for TerrorMazeModelWrapper {
@@ -18,9 +18,17 @@ impl Model for TerrorMazeModelWrapper {
 
     type Action = i32;
 
-    fn predict_step(&self, state: &Self::State, action: &Self::Action) -> rlalgs::model::ModelStep<Self::State> {
+    fn predict_step(
+        &self,
+        state: &Self::State,
+        action: &Self::Action,
+    ) -> rlalgs::model::ModelStep<Self::State> {
         self.env.borrow_mut().set_state(state);
-        let env_step = self.env.borrow_mut().step(action, &mut rand::thread_rng()).unwrap();
+        let env_step = self
+            .env
+            .borrow_mut()
+            .step(action, &mut rand::thread_rng())
+            .unwrap();
         ModelStep {
             state: env_step.next_state,
             reward: env_step.reward,
@@ -37,9 +45,13 @@ impl Model for TerrorMazeModelWrapper {
         todo!()
     }
 
-    fn sample_sa<R>(&self, rng: &mut R) -> Option<rlalgs::model::SampleSA<Self::State, Self::Action>>
+    fn sample_sa<R>(
+        &self,
+        rng: &mut R,
+    ) -> Option<rlalgs::model::SampleSA<Self::State, Self::Action>>
     where
-        R: rand::Rng + ?Sized {
+        R: rand::Rng + ?Sized,
+    {
         todo!()
     }
 
@@ -53,7 +65,6 @@ impl Model for TerrorMazeModelWrapper {
 
 #[test]
 fn mcts_test() {
-
     // Create environment
     let env = TerrorMaze::new();
 
@@ -72,7 +83,7 @@ fn mcts_test() {
     // As model we use the actual true environment. This is a wrapper that
     // contains the true environment
     let model = TerrorMazeModelWrapper {
-        env: RefCell::new(TerrorMaze::new())
+        env: RefCell::new(TerrorMaze::new()),
     };
 
     let env_essay = TerrorMaze::new();
@@ -88,7 +99,7 @@ fn mcts_test() {
         false,
         verbosity,
         env_essay,
-        0.999
+        0.999,
     );
 
     // Make an episode with greedy policy

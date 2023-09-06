@@ -3,7 +3,9 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{Environment, EnvironmentError, Step, EnvironmentEssay, DiscreteActionEnvironmentEssay};
+use crate::{
+    DiscreteActionEnvironmentEssay, Environment, EnvironmentError, EnvironmentEssay, Step,
+};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -229,7 +231,10 @@ impl Environment for SimpleMaze {
 
         let mut new_row = self.current_row;
         let mut new_col = self.current_col;
-        if !Environment::is_terminal(self, &self.get_state_id(&self.current_row, &self.current_col)) {
+        if !Environment::is_terminal(
+            self,
+            &self.get_state_id(&self.current_row, &self.current_col),
+        ) {
             match *action {
                 LEFT => new_col = cmp::max(new_col - 1, 0),
                 DOWN => new_row = cmp::min(new_row + 1, self.map_dim.0 - 1),
@@ -250,7 +255,10 @@ impl Environment for SimpleMaze {
             next_state: self.get_state_id(&self.current_row, &self.current_col),
             // here we use new_row and new_col because in case of cliff the reward is -100 but the current state is start
             reward: self.get_state_reward(&self.get_state_id(&self.current_row, &self.current_col)),
-            terminated: Environment::is_terminal(self, &self.get_state_id(&self.current_row, &self.current_col)),
+            terminated: Environment::is_terminal(
+                self,
+                &self.get_state_id(&self.current_row, &self.current_col),
+            ),
             truncated: false,
         })
     }
@@ -291,7 +299,6 @@ impl TabularEnvironment for SimpleMaze {
     }
 }
 
-
 impl EnvironmentEssay for SimpleMaze {
     type State = i32;
     type Action = i32;
@@ -300,7 +307,12 @@ impl EnvironmentEssay for SimpleMaze {
         Environment::is_terminal(self, state)
     }
 
-    fn compute_reward(&self, _state: &Self::State, _action: &Self::Action, next_state: &Self::State) -> f32 {
+    fn compute_reward(
+        &self,
+        _state: &Self::State,
+        _action: &Self::Action,
+        next_state: &Self::State,
+    ) -> f32 {
         self.get_state_reward(next_state)
     }
 }

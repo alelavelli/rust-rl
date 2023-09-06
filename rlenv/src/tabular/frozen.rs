@@ -3,7 +3,9 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{Environment, EnvironmentError, Step, EnvironmentEssay, DiscreteActionEnvironmentEssay};
+use crate::{
+    DiscreteActionEnvironmentEssay, Environment, EnvironmentError, EnvironmentEssay, Step,
+};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -181,7 +183,10 @@ impl Environment for FrozenLake {
     {
         let starting_state = self.get_state_id(&self.current_row, &self.current_col);
 
-        if !Environment::is_terminal(self, &self.get_state_id(&self.current_row, &self.current_col)) {
+        if !Environment::is_terminal(
+            self,
+            &self.get_state_id(&self.current_row, &self.current_col),
+        ) {
             let mut new_row = self.current_row;
             let mut new_col = self.current_col;
 
@@ -202,7 +207,10 @@ impl Environment for FrozenLake {
             action: *action,
             next_state: self.get_state_id(&self.current_row, &self.current_col),
             reward: self.get_state_reward(&self.get_state_id(&self.current_row, &self.current_col)),
-            terminated: Environment::is_terminal(self, &self.get_state_id(&self.current_row, &self.current_col)),
+            terminated: Environment::is_terminal(
+                self,
+                &self.get_state_id(&self.current_row, &self.current_col),
+            ),
             truncated: false,
         })
     }
@@ -243,7 +251,6 @@ impl TabularEnvironment for FrozenLake {
     }
 }
 
-
 impl EnvironmentEssay for FrozenLake {
     type State = i32;
     type Action = i32;
@@ -252,7 +259,12 @@ impl EnvironmentEssay for FrozenLake {
         Environment::is_terminal(self, state)
     }
 
-    fn compute_reward(&self, _state: &Self::State, _action: &Self::Action, next_state: &Self::State) -> f32 {
+    fn compute_reward(
+        &self,
+        _state: &Self::State,
+        _action: &Self::Action,
+        next_state: &Self::State,
+    ) -> f32 {
         self.get_state_reward(next_state)
     }
 }
