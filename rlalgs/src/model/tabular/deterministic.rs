@@ -84,7 +84,7 @@ impl Model for DeterministicModel {
         &self,
         state: &Self::State,
     ) -> Option<&Vec<StateAction<Self::State, Self::Action>>> {
-        self.precedessors.get(&state)
+        self.precedessors.get(state)
     }
 }
 

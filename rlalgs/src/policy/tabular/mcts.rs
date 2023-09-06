@@ -435,7 +435,7 @@ where
             tree_ref.get_node(root_id).unwrap()
         };
 
-        for i in 0..self.iterations {
+        for _i in 0..self.iterations {
             let node = self.selection(Arc::clone(&root));
             let ret = self.rollout(Arc::clone(&node), rng);
             self.backup(Arc::clone(&node), ret);
@@ -445,11 +445,11 @@ where
         Ok(action)
     }
 
-    fn get_best_a(&self, state: &S) -> Result<A, crate::policy::PolicyError> {
+    fn get_best_a(&self, _state: &S) -> Result<A, crate::policy::PolicyError> {
         todo!()
     }
 
-    fn action_prob(&self, state: &S, action: &A) -> f32 {
+    fn action_prob(&self, _state: &S, _action: &A) -> f32 {
         todo!()
     }
 }
@@ -513,7 +513,7 @@ where
             .iter()
             .zip(&read_guard.attributes.actions)
             .enumerate()
-            .filter(|(i, (&x, _))| x == 0)
+            .filter(|(_i, (&x, _))| x == 0)
             .map(|(i, (_, a))| (a, i))
             .collect();
         if !no_visit_actions.is_empty() {

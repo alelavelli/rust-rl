@@ -79,7 +79,7 @@ where
             if t < capital_t {
                 // take action A and observer R and S'
                 let episode_step = environment
-                    .step(&&actions[t as usize], rng)
+                    .step(&actions[t as usize], rng)
                     .map_err(LearningError::EnvironmentStep)?;
                 // store next state and reward
                 states.push(episode_step.next_state);
