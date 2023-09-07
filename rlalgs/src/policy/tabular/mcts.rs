@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use indicatif::{ProgressBar, ProgressIterator};
 use ndarray::Array1;
 use ndarray_stats::QuantileExt;
 use rand::Rng;
@@ -436,7 +437,13 @@ where
             tree_ref.get_node(root_id).unwrap()
         };
 
-        for _i in 0..self.iterations {
+        let progress_bar = if self.verbosity.episode_progress {
+            ProgressBar::new(self.iterations as u64)
+        }
+        else {
+            ProgressBar::hidden()
+        };
+        for _i in (0..self.iterations).progress_with(progress_bar) {
             let node = self.selection(Arc::clone(&root));
             let ret = self.rollout(Arc::clone(&node), rng);
             self.backup(Arc::clone(&node), ret);
