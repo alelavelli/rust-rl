@@ -149,6 +149,7 @@ where
     S: Clone + Display + Debug,
     A: Clone + Display + Debug,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         tree_policy: T,
         rollout_policy: P,
@@ -454,6 +455,8 @@ where
     }
 }
 
+type NodeType<S, A> = Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>;
+
 /// Action selector in the MCTS tree
 ///
 /// According to the value and the number of visits, the node
@@ -467,13 +470,13 @@ pub trait NodeSelector {
     /// If no expansion is available then it is returned None
     fn expansion_action(
         &self,
-        node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
+        node: NodeType<Self::State, Self::Action>,
     ) -> Result<Option<(Self::Action, usize)>, MCTSError>;
 
     /// Retrurns an action with selection
     fn select_action(
         &self,
-        node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
+        node: NodeType<Self::State, Self::Action>,
     ) -> Result<(Self::Action, usize), MCTSError>;
 }
 
@@ -503,7 +506,7 @@ where
 
     fn expansion_action(
         &self,
-        node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
+        node: NodeType<Self::State, Self::Action>,
     ) -> Result<Option<(Self::Action, usize)>, MCTSError> {
         let read_guard = node.read().unwrap();
         // First of all, if there is some action that is never visited we return it
@@ -525,7 +528,7 @@ where
 
     fn select_action(
         &self,
-        node: Arc<RwLock<arena_tree::Node<NodeAttributes<Self::State, Self::Action>>>>,
+        node: NodeType<Self::State, Self::Action>,
     ) -> Result<(Self::Action, usize), MCTSError> {
         let read_guard = node.read().unwrap();
 

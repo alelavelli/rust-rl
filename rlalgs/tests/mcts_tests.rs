@@ -37,17 +37,17 @@ impl Model for TerrorMazeModelWrapper {
 
     fn update_step(
         &mut self,
-        state: &Self::State,
-        action: &Self::Action,
-        next_state: &Self::State,
-        reward: f32,
+        _state: &Self::State,
+        _action: &Self::Action,
+        _next_state: &Self::State,
+        _reward: f32,
     ) {
         todo!()
     }
 
     fn sample_sa<R>(
         &self,
-        rng: &mut R,
+        _rng: &mut R,
     ) -> Option<rlalgs::model::SampleSA<Self::State, Self::Action>>
     where
         R: rand::Rng + ?Sized,
@@ -57,7 +57,7 @@ impl Model for TerrorMazeModelWrapper {
 
     fn get_preceding_sa(
         &self,
-        state: &Self::State,
+        _state: &Self::State,
     ) -> Option<&Vec<rlalgs::StateAction<Self::State, Self::Action>>> {
         todo!()
     }
@@ -93,7 +93,7 @@ fn mcts_test() {
         mcts::UCBSelector::new(1.0),
         rollout_policy,
         model,
-        10000,
+        10,
         300,
         mcts::RootActionCriterion::HighestScore,
         false,
