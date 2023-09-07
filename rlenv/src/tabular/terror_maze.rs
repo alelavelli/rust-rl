@@ -204,7 +204,7 @@ impl TerrorMaze {
     }
 
     fn get_state_type(&self, state: &i32) -> &TerrorMazeStateType {
-        let (row, col) = self.to_row_col(&state);
+        let (row, col) = self.to_row_col(state);
         &self.map[[row as usize, col as usize]]
     }
 
@@ -240,7 +240,7 @@ impl Environment for TerrorMaze {
     }
 
     fn is_terminal(&self, state: &Self::State) -> bool {
-        let (row, col) = self.to_row_col(&state);
+        let (row, col) = self.to_row_col(state);
         matches!(
             self.map[[row as usize, col as usize]],
             TerrorMazeStateType::Goal | TerrorMazeStateType::SpearWall

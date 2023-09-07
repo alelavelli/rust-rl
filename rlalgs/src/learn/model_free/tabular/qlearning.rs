@@ -36,7 +36,6 @@ pub struct Params {
 /// ## Returns
 ///
 /// `new_policy`: new policy that was optimized over the environment
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
     mut policy: P,
     mut environment: E,

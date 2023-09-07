@@ -153,7 +153,7 @@ impl Environment for FrozenLake {
     }
 
     fn is_terminal(&self, state: &Self::State) -> bool {
-        let (row, col) = self.to_row_col(&state);
+        let (row, col) = self.to_row_col(state);
         matches!(
             self.map[[row as usize, col as usize]],
             FrozenLakeStateType::Hole | FrozenLakeStateType::Goal

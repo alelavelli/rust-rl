@@ -184,7 +184,7 @@ impl WindyGridworld {
     }
 
     fn get_state_reward(&self, state: &i32) -> f32 {
-        match self.get_state_type(&state) {
+        match self.get_state_type(state) {
             WindyGridworldStateType::Goal => 0.0,
             _ => -1.0,
         }
