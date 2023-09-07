@@ -399,7 +399,7 @@ mod tests {
         let step = env.step(&LEFT, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 33);
-        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
     }
@@ -419,7 +419,7 @@ mod tests {
         let step = env.step(&RIGHT, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 36);
-        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.reward, -1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
     }
