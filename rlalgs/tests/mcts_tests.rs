@@ -96,7 +96,7 @@ fn mcts_test() {
         10,
         300,
         mcts::RootActionCriterion::HighestScore,
-        false,
+        true,
         verbosity,
         env_essay,
         0.999,

@@ -29,6 +29,7 @@ use crate::{
 /// - `value`: value of this node
 /// - `action_visits`: number of visits for each available action
 /// - `action_values`: value associated to each avaiable action
+#[derive(Clone)]
 pub struct NodeAttributes<S, A> {
     state: S,
     actions: Vec<A>,
@@ -381,7 +382,7 @@ where
         }
     }
 
-    fn choose_action(&self, root: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>) -> A {
+    fn choose_action(&self, root: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>) -> (usize, A) {
         let chose_action_id = match self.root_action_criterion {
             RootActionCriterion::HighestScore => root
                 .read()
@@ -398,7 +399,7 @@ where
                 .argmax()
                 .unwrap(),
         };
-        root.read().unwrap().attributes.actions[chose_action_id].clone()
+        (chose_action_id, root.read().unwrap().attributes.actions[chose_action_id].clone())
     }
 }
 
@@ -409,7 +410,7 @@ where
     M: Model<State = S, Action = A>,
     E: EnvironmentEssay<State = S, Action = A>
         + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone + Display + Debug,
+    S: Clone + Display + Debug + std::cmp::PartialEq,
     A: Clone + Display + Debug,
 {
     type State = S;
@@ -421,8 +422,18 @@ where
     {
         let root = {
             let tree_ref = self.tree.borrow();
-            tree_ref.reset();
-            let root_id = tree_ref
+            // According to the parameter `reuse_tree` the current tree can be already initialized
+            // and the root should be the state passed as parameter.
+            // we need to check if this assumption is true and then proceed with the action computation
+            if self.reuse_tree & tree_ref.get_root().is_some() {
+                let tree_root = tree_ref.get_root().unwrap();
+                if tree_root.read().unwrap().attributes.state != *state {
+                    return Err(crate::policy::PolicyError::GenericError)
+                }
+                tree_root
+            }
+            else {
+                let root_id = tree_ref
                 .add_node(
                     None,
                     NodeAttributes::new(
@@ -434,7 +445,9 @@ where
                     ),
                 )
                 .unwrap();
-            tree_ref.get_node(root_id).unwrap()
+                tree_ref.get_node(root_id).unwrap()
+            }
+            
         };
 
         let progress_bar = if self.verbosity.episode_progress {
@@ -449,7 +462,16 @@ where
             self.backup(Arc::clone(&node), ret);
         }
 
-        let action = self.choose_action(Arc::clone(&root));
+        let (action_id, action) = self.choose_action(Arc::clone(&root));
+        // If we reuse the tree then, we extract the subtree from the chosen action as root
+        // otherwise, we reset it
+        if self.reuse_tree {
+            let mut tree_ref = self.tree.borrow_mut();
+            *tree_ref = tree_ref.extract_subtree(root.read().unwrap().children[action_id]).unwrap();
+        } else {
+            let tree_ref = self.tree.borrow();
+            tree_ref.reset();
+        }
         Ok(action)
     }
 
