@@ -1,16 +1,17 @@
 use std::cell::RefCell;
+use std::sync::RwLock;
 
 use rlalgs::generate_episode;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::{Model, ModelStep};
 use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
-use rlalgs::policy::tabular::mcts;
+use rlalgs::policy::tabular::mcts::{self, MCTSParallelMode};
 use rlenv::tabular::terror_maze::TerrorMaze;
 use rlenv::tabular::TabularEnvironment;
 use rlenv::Environment;
 
 struct TerrorMazeModelWrapper {
-    env: RefCell<TerrorMaze>,
+    env: RwLock<TerrorMaze>,
 }
 
 impl Model for TerrorMazeModelWrapper {
@@ -23,10 +24,11 @@ impl Model for TerrorMazeModelWrapper {
         state: &Self::State,
         action: &Self::Action,
     ) -> rlalgs::model::ModelStep<Self::State> {
-        self.env.borrow_mut().set_state(state);
+        self.env.write().unwrap().set_state(state);
         let env_step = self
             .env
-            .borrow_mut()
+            .write()
+            .unwrap()
             .step(action, &mut rand::thread_rng())
             .unwrap();
         ModelStep {
@@ -83,7 +85,7 @@ fn mcts_test() {
     // As model we use the actual true environment. This is a wrapper that
     // contains the true environment
     let model = TerrorMazeModelWrapper {
-        env: RefCell::new(TerrorMaze::new()),
+        env: RwLock::new(TerrorMaze::new()),
     };
 
     let env_essay = TerrorMaze::new();
@@ -100,6 +102,8 @@ fn mcts_test() {
         verbosity,
         env_essay,
         0.999,
+        Some(MCTSParallelMode::Leaf(1)),
+        10,
     );
 
     // Make an episode with greedy policy

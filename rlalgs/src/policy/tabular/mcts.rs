@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     error::Error,
     fmt::{Debug, Display},
     marker::PhantomData,
@@ -10,6 +9,7 @@ use indicatif::{ProgressBar, ProgressIterator};
 use ndarray::Array1;
 use ndarray_stats::QuantileExt;
 use rand::Rng;
+use rayon::{prelude::*, ThreadPoolBuilder};
 use rlenv::{DiscreteActionEnvironmentEssay, EnvironmentEssay};
 
 use crate::{
@@ -65,9 +65,23 @@ impl<S, A> NodeAttributes<S, A> {
     }
 }
 
+/// Criterion to choose the action
+///
+/// - `MostPlayed`
+/// - `HighestScore`
 pub enum RootActionCriterion {
     MostPlayed,
     HighestScore,
+}
+
+/// Kind of parallelization in Monte Carlo Tree Search
+///
+/// The parallelization fields of the Enum contain the number
+/// of concurrent threads
+pub enum MCTSParallelMode {
+    Leaf(usize),
+    //Root(usize),
+    //Tree(usize),
 }
 
 /// Monte Carlo Tree Search for Tabular Data
@@ -118,15 +132,18 @@ pub enum RootActionCriterion {
 /// - `env_essay`: component that contains information about the environment like is a state is terminal or what are the
 /// available action in that given state
 /// - `gamma`: discount factor
+/// - `parallel_mode`: type of parallelism to use during the action search
+/// - `num_rollouts`: number of rollouts simulations to do during the rollout phase
 pub struct MCTSPolicy<T, P, M, S, A, E>
 where
-    T: NodeSelector<State = S, Action = A>,
-    P: Policy<State = S, Action = A>,
-    M: Model<State = S, Action = A>,
+    T: NodeSelector<State = S, Action = A> + std::marker::Sync,
+    P: Policy<State = S, Action = A> + std::marker::Sync,
+    M: Model<State = S, Action = A> + std::marker::Sync,
     E: EnvironmentEssay<State = S, Action = A>
-        + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone + Display + Debug,
-    A: Display + Debug,
+        + DiscreteActionEnvironmentEssay<State = S, Action = A>
+        + std::marker::Sync,
+    S: Clone + Display + Debug + std::marker::Sync + std::marker::Send,
+    A: Display + Debug + std::marker::Sync + std::marker::Send,
 {
     tree_policy: T,
     rollout_policy: P,
@@ -136,20 +153,23 @@ where
     root_action_criterion: RootActionCriterion,
     reuse_tree: bool,
     verbosity: VerbosityConfig,
-    tree: RefCell<TreeArena<NodeAttributes<S, A>>>,
+    tree: RwLock<TreeArena<NodeAttributes<S, A>>>,
     env_essay: E,
     gamma: f32,
+    parallel_mode: Option<MCTSParallelMode>,
+    num_rollouts: u32,
 }
 
 impl<T, P, M, S, A, E> MCTSPolicy<T, P, M, S, A, E>
 where
-    T: NodeSelector<State = S, Action = A>,
-    P: Policy<State = S, Action = A>,
-    M: Model<State = S, Action = A>,
+    T: NodeSelector<State = S, Action = A> + std::marker::Sync,
+    P: Policy<State = S, Action = A> + std::marker::Sync,
+    M: Model<State = S, Action = A> + std::marker::Sync,
     E: EnvironmentEssay<State = S, Action = A>
-        + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone + Display + Debug,
-    A: Clone + Display + Debug,
+        + DiscreteActionEnvironmentEssay<State = S, Action = A>
+        + std::marker::Sync,
+    S: Clone + Display + Debug + std::marker::Sync + std::marker::Send,
+    A: Clone + Display + Debug + std::marker::Sync + std::marker::Send,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -163,6 +183,8 @@ where
         verbosity: VerbosityConfig,
         env_essay: E,
         gamma: f32,
+        parallel_mode: Option<MCTSParallelMode>,
+        num_rollouts: u32,
     ) -> MCTSPolicy<T, P, M, S, A, E> {
         MCTSPolicy {
             tree_policy,
@@ -173,9 +195,11 @@ where
             root_action_criterion,
             reuse_tree,
             verbosity,
-            tree: RefCell::new(arena_tree::TreeArena::<NodeAttributes<S, A>>::new()),
+            tree: RwLock::new(arena_tree::TreeArena::<NodeAttributes<S, A>>::new()),
             env_essay,
             gamma,
+            parallel_mode,
+            num_rollouts,
         }
     }
 
@@ -244,7 +268,8 @@ where
                 let current_node_id = { current.read().unwrap().id };
                 let new_node_id = self
                     .tree
-                    .borrow()
+                    .read()
+                    .unwrap()
                     .add_node(
                         Some(current_node_id),
                         NodeAttributes::new(
@@ -257,7 +282,7 @@ where
                     )
                     .unwrap();
 
-                current = self.tree.borrow().get_node(new_node_id).unwrap();
+                current = self.tree.read().unwrap().get_node(new_node_id).unwrap();
                 break;
             } else {
                 // otherwise, the next current node is the child of the node with index
@@ -265,7 +290,8 @@ where
                 let next_node = Arc::clone(
                     &self
                         .tree
-                        .borrow()
+                        .read()
+                        .unwrap()
                         .get_children(current.read().unwrap().id)
                         .unwrap()[action_id],
                 );
@@ -278,14 +304,15 @@ where
 
     /// Simulation phase
     ///
-    /// From the selected node, or from one of its newly-added child nodes, simulation of
-    /// a complete episode is run with actions selected by the rollout policy. The result
-    /// is a Monte Carlo trial with actions selected first by the tree policy and beyond
-    /// the tree by the rollout policy
+    /// From the selected node, or from one of its newly-added child nodes, a set of
+    /// simulation of a complete episode is run with actions selected by the rollout
+    /// policy.
+    /// The result of the Monte Carlo trials with actions selected first by the tree
+    /// policy and beyond the tree by the rollout policy is then averaged and returned.
     fn rollout<R>(
         &self,
         node: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>,
-        rng: &mut R,
+        _rng: &mut R,
     ) -> f32
     where
         R: Rng + ?Sized,
@@ -294,31 +321,66 @@ where
         if node.read().unwrap().attributes.terminal {
             0.0
         } else {
-            let (mut current_state, mut is_terminal, mut current_depth) = {
+            let (current_state, current_depth) = {
                 let read_guard = node.read().unwrap();
-                (
-                    read_guard.attributes.state.clone(),
-                    read_guard.attributes.terminal,
-                    read_guard.depth,
-                )
+                (read_guard.attributes.state.clone(), read_guard.depth)
             };
 
-            let mut ret = 0.0;
-            while (current_depth < self.max_depth) & !is_terminal {
-                let action = self.rollout_policy.step(&current_state, rng).unwrap();
-                let model_step = self.model.predict_step(&current_state, &action);
-                current_depth += 1;
-                current_state = model_step.state.clone();
-                is_terminal = self.env_essay.is_terminal(&current_state);
-                ret += self.gamma.powi(current_depth) * model_step.reward;
-            }
-            // here a value model can be used to get the value of the last state.
-            // This depends mainly on the size of the discount factor that determines
-            // if this value is significative or is near to zero
-            // an example should be
-            // `ret += self.value_function(&current_state)`
-            ret
+            // Check if the execution is with Leaf parallel mode.
+            // If yes, then we run multiple rollout in parallel
+            let num_threads: usize =
+                if let Some(MCTSParallelMode::Leaf(num_threads)) = self.parallel_mode {
+                    num_threads
+                } else {
+                    1
+                };
+
+            let pool = ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build()
+                .unwrap();
+            let sum_returns = pool.install(|| {
+                (0..self.num_rollouts)
+                    .collect::<Vec<u32>>()
+                    .par_iter()
+                    .map(|_| {
+                        self.single_rollout(
+                            current_depth,
+                            current_state.clone(),
+                            &mut rand::thread_rng(),
+                        )
+                    })
+                    .sum::<f32>()
+            });
+            //let ret = self.rollout(Arc::clone(&node), rng);
+            sum_returns / self.num_rollouts as f32
         }
+    }
+
+    /// Single rollout execution
+    fn single_rollout<R>(&self, starting_depth: i32, starting_state: S, rng: &mut R) -> f32
+    where
+        R: Rng + ?Sized,
+    {
+        let mut is_terminal = false;
+        let mut current_state = starting_state;
+        let mut current_depth = starting_depth;
+
+        let mut ret = 0.0;
+        while (current_depth < self.max_depth) & !is_terminal {
+            let action = self.rollout_policy.step(&current_state, rng).unwrap();
+            let model_step = self.model.predict_step(&current_state, &action);
+            current_depth += 1;
+            current_state = model_step.state.clone();
+            is_terminal = self.env_essay.is_terminal(&current_state);
+            ret += self.gamma.powi(current_depth) * model_step.reward;
+        }
+        // here a value model can be used to get the value of the last state.
+        // This depends mainly on the size of the discount factor that determines
+        // if this value is significative or is near to zero
+        // an example should be
+        // `ret += self.value_function(&current_state)`
+        ret
     }
 
     /// Backup phase
@@ -345,7 +407,12 @@ where
 
         while parent_id.is_some() {
             {
-                let parent = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
+                let parent = self
+                    .tree
+                    .read()
+                    .unwrap()
+                    .get_node(parent_id.unwrap())
+                    .unwrap();
                 let mut parent_write_guard = parent.write().unwrap();
 
                 parent_write_guard.attributes.visits += 1;
@@ -377,12 +444,20 @@ where
             }
 
             // get ready for a new loop. The parent become the child
-            child = self.tree.borrow().get_node(parent_id.unwrap()).unwrap();
+            child = self
+                .tree
+                .read()
+                .unwrap()
+                .get_node(parent_id.unwrap())
+                .unwrap();
             parent_id = child.read().unwrap().parent;
         }
     }
 
-    fn choose_action(&self, root: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>) -> (usize, A) {
+    fn choose_action(
+        &self,
+        root: Arc<RwLock<arena_tree::Node<NodeAttributes<S, A>>>>,
+    ) -> (usize, A) {
         let chose_action_id = match self.root_action_criterion {
             RootActionCriterion::HighestScore => root
                 .read()
@@ -399,19 +474,23 @@ where
                 .argmax()
                 .unwrap(),
         };
-        (chose_action_id, root.read().unwrap().attributes.actions[chose_action_id].clone())
+        (
+            chose_action_id,
+            root.read().unwrap().attributes.actions[chose_action_id].clone(),
+        )
     }
 }
 
 impl<T, P, M, S, A, E> Policy for MCTSPolicy<T, P, M, S, A, E>
 where
-    T: NodeSelector<State = S, Action = A>,
-    P: Policy<State = S, Action = A>,
-    M: Model<State = S, Action = A>,
+    T: NodeSelector<State = S, Action = A> + std::marker::Sync,
+    P: Policy<State = S, Action = A> + std::marker::Sync,
+    M: Model<State = S, Action = A> + std::marker::Sync,
     E: EnvironmentEssay<State = S, Action = A>
-        + DiscreteActionEnvironmentEssay<State = S, Action = A>,
-    S: Clone + Display + Debug + std::cmp::PartialEq,
-    A: Clone + Display + Debug,
+        + DiscreteActionEnvironmentEssay<State = S, Action = A>
+        + std::marker::Sync,
+    S: Clone + Display + Debug + std::cmp::PartialEq + std::marker::Sync + std::marker::Send,
+    A: Clone + Display + Debug + std::marker::Sync + std::marker::Send,
 {
     type State = S;
     type Action = A;
@@ -421,39 +500,36 @@ where
         R: rand::Rng + ?Sized,
     {
         let root = {
-            let tree_ref = self.tree.borrow();
+            let tree_ref = self.tree.read().unwrap();
             // According to the parameter `reuse_tree` the current tree can be already initialized
             // and the root should be the state passed as parameter.
             // we need to check if this assumption is true and then proceed with the action computation
             if self.reuse_tree & tree_ref.get_root().is_some() {
                 let tree_root = tree_ref.get_root().unwrap();
                 if tree_root.read().unwrap().attributes.state != *state {
-                    return Err(crate::policy::PolicyError::GenericError)
+                    return Err(crate::policy::PolicyError::GenericError);
                 }
                 tree_root
-            }
-            else {
+            } else {
                 let root_id = tree_ref
-                .add_node(
-                    None,
-                    NodeAttributes::new(
-                        state.clone(),
-                        self.env_essay.available_actions(state),
-                        self.env_essay.is_terminal(state),
+                    .add_node(
                         None,
-                        None,
-                    ),
-                )
-                .unwrap();
+                        NodeAttributes::new(
+                            state.clone(),
+                            self.env_essay.available_actions(state),
+                            self.env_essay.is_terminal(state),
+                            None,
+                            None,
+                        ),
+                    )
+                    .unwrap();
                 tree_ref.get_node(root_id).unwrap()
             }
-            
         };
 
         let progress_bar = if self.verbosity.episode_progress {
             ProgressBar::new(self.iterations as u64)
-        }
-        else {
+        } else {
             ProgressBar::hidden()
         };
         for _i in (0..self.iterations).progress_with(progress_bar) {
@@ -466,10 +542,12 @@ where
         // If we reuse the tree then, we extract the subtree from the chosen action as root
         // otherwise, we reset it
         if self.reuse_tree {
-            let mut tree_ref = self.tree.borrow_mut();
-            *tree_ref = tree_ref.extract_subtree(root.read().unwrap().children[action_id]).unwrap();
+            let mut tree_ref = self.tree.write().unwrap();
+            *tree_ref = tree_ref
+                .extract_subtree(root.read().unwrap().children[action_id])
+                .unwrap();
         } else {
-            let tree_ref = self.tree.borrow();
+            let tree_ref = self.tree.read().unwrap();
             tree_ref.reset();
         }
         Ok(action)
