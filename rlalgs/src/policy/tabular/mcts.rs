@@ -102,7 +102,7 @@ pub enum MCTSParallelMode {
 /// useful when the time required to run a single simulation is long.
 ///
 /// 2. **Root parallelization** consists of building multiple MCTS trees in
-/// parallel, with one thread per tree. When, the time isspent, all the root children
+/// parallel, with one thread per tree. When, the time is spent, all the root children
 /// of the separate MCTS trees are merged. The best move is selected based on summing
 /// up the scores.
 ///

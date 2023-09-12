@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::RwLock;
 
 use rlalgs::generate_episode;
