@@ -54,9 +54,9 @@ pub fn learn<P, B, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    B: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    B: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     let n = params.n as f32;
@@ -85,7 +85,7 @@ where
 
         // choose action from S with policy and store it
         let action = behaviour
-            .step(state, rng)
+            .step(&state, rng)
             .map_err(LearningError::PolicyStep)?;
         actions.push(action);
 
@@ -96,7 +96,7 @@ where
             if t < capital_t {
                 // take action A and observer R and S'
                 let episode_step = environment
-                    .step(actions[t as usize], rng)
+                    .step(&actions[t as usize], rng)
                     .map_err(LearningError::EnvironmentStep)?;
                 // store next state and reward
                 states.push(episode_step.next_state);
@@ -108,7 +108,7 @@ where
                 } else {
                     // otherwise do the next step
                     let next_action = behaviour
-                        .step(episode_step.next_state, rng)
+                        .step(&episode_step.next_state, rng)
                         .map_err(LearningError::PolicyStep)?;
                     actions.push(next_action);
 
@@ -121,8 +121,8 @@ where
 
                     // store importance retio
                     rhos.push(
-                        policy.action_prob(episode_step.next_state, next_action)
-                            / behaviour.action_prob(episode_step.next_state, next_action),
+                        policy.action_prob(&episode_step.next_state, &next_action)
+                            / behaviour.action_prob(&episode_step.next_state, &next_action),
                     );
                 }
             }
@@ -133,7 +133,8 @@ where
                 let mut return_g = 0.0;
 
                 if (t + 1.0) < capital_t {
-                    return_g = policy.get_q_value(states[t as usize + 1], actions[t as usize + 1]);
+                    return_g =
+                        policy.get_q_value(&states[t as usize + 1], &actions[t as usize + 1]);
                 }
 
                 for k in ((tau as i32 + 1)..=min(t as i32 + 1, capital_t as i32)).rev() {
@@ -146,10 +147,10 @@ where
                         let action_k = actions[k_idx];
                         let sigma_k = sigmas[k_idx - 1];
                         let rho_k = rhos[k_idx - 1];
-                        let q_sa_k = policy.get_q_value(state_k, action_k);
-                        let a_k_prob = policy.action_prob(state_k, action_k);
+                        let q_sa_k = policy.get_q_value(&state_k, &action_k);
+                        let a_k_prob = policy.action_prob(&state_k, &action_k);
 
-                        let state_value = policy.expected_q_value(state_k);
+                        let state_value = policy.expected_q_value(&state_k);
                         return_g = rewards[k as usize - 1]
                             + params.gamma
                                 * (sigma_k * rho_k + (1.0 - sigma_k) * a_k_prob)
@@ -159,10 +160,10 @@ where
                 }
 
                 // update policy q at states and actions at time tau
-                let q_sa_tau = policy.get_q_value(states[tau as usize], actions[tau as usize]);
+                let q_sa_tau = policy.get_q_value(&states[tau as usize], &actions[tau as usize]);
                 let new_q_value = q_sa_tau + params.step_size * (return_g - q_sa_tau);
 
-                policy.update_q_entry(states[tau as usize], actions[tau as usize], new_q_value);
+                policy.update_q_entry(&states[tau as usize], &actions[tau as usize], new_q_value);
             }
 
             if versbosity.render_env {

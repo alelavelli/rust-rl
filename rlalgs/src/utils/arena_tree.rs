@@ -18,12 +18,12 @@ pub type NodeId = i32;
 /// The attributes contains actual attributes of the node as is implemented
 /// as generic.
 pub struct Node<T> {
-    id: NodeId,
-    parent: Option<NodeId>,
-    children: Vec<NodeId>,
+    pub id: NodeId,
+    pub parent: Option<NodeId>,
+    pub children: Vec<NodeId>,
     // depth of the node inside the tree. 0 if it is root
-    depth: i32,
-    attributes: T,
+    pub depth: i32,
+    pub attributes: T,
 }
 
 /// TreeArena struct that owns the nodes
@@ -46,6 +46,13 @@ impl<T> TreeArena<T> {
             global_counter: RwLock::new(0),
             root: RwLock::new(None),
         }
+    }
+
+    // delete all the nodes in the arena tree
+    pub fn reset(&self) {
+        *self.map.write().unwrap() = HashMap::new();
+        *self.global_counter.write().unwrap() = 0;
+        *self.root.write().unwrap() = None;
     }
 
     /// Generate new id in the arena and delete the previous one
@@ -98,8 +105,8 @@ impl<T> TreeArena<T> {
             } // unlock here the map
 
             if let Some(parent_node) = parent {
-                let parent_node = self.get_node(parent_node);
-                parent_node.unwrap().write().unwrap().children.push(new_id);
+                let parent_node = self.get_node(parent_node).unwrap();
+                parent_node.write().unwrap().children.push(new_id);
             }
 
             if !root_is_present {

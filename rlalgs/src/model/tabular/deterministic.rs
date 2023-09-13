@@ -36,26 +36,38 @@ impl DeterministicModel {
     }
 }
 
-impl Model<i32, i32> for DeterministicModel {
-    fn predict_step(&self, state: i32, action: i32) -> ModelStep<i32> {
+impl Model for DeterministicModel {
+    type State = i32;
+    type Action = i32;
+
+    fn predict_step(&self, state: &Self::State, action: &Self::Action) -> ModelStep<Self::State> {
         ModelStep {
-            state: self.transition_matrix[[state as usize, action as usize]],
-            reward: self.reward_matrix[[state as usize, action as usize]],
+            state: self.transition_matrix[[*state as usize, *action as usize]],
+            reward: self.reward_matrix[[*state as usize, *action as usize]],
         }
     }
 
-    fn update_step(&mut self, state: i32, action: i32, next_state: i32, reward: f32) {
-        self.experienced_samples.insert((state, action));
-        self.transition_matrix[[state as usize, action as usize]] = next_state;
-        self.reward_matrix[[state as usize, action as usize]] = reward;
-        let sa = StateAction { state, action };
-        let vector = self.precedessors.entry(next_state).or_insert(Vec::new());
+    fn update_step(
+        &mut self,
+        state: &Self::State,
+        action: &Self::Action,
+        next_state: &Self::State,
+        reward: f32,
+    ) {
+        self.experienced_samples.insert((*state, *action));
+        self.transition_matrix[[*state as usize, *action as usize]] = *next_state;
+        self.reward_matrix[[*state as usize, *action as usize]] = reward;
+        let sa = StateAction::<Self::State, Self::Action> {
+            state: *state,
+            action: *action,
+        };
+        let vector = self.precedessors.entry(*next_state).or_insert(Vec::new());
         if !vector.contains(&sa) {
             vector.push(sa)
         }
     }
 
-    fn sample_sa<R>(&self, rng: &mut R) -> Option<SampleSA<i32, i32>>
+    fn sample_sa<R>(&self, rng: &mut R) -> Option<SampleSA<Self::State, Self::Action>>
     where
         R: Rng + ?Sized,
     {
@@ -68,8 +80,11 @@ impl Model<i32, i32> for DeterministicModel {
             })
     }
 
-    fn get_preceding_sa(&self, state: i32) -> Option<&Vec<StateAction<i32, i32>>> {
-        self.precedessors.get(&state)
+    fn get_preceding_sa(
+        &self,
+        state: &Self::State,
+    ) -> Option<&Vec<StateAction<Self::State, Self::Action>>> {
+        self.precedessors.get(state)
     }
 }
 
@@ -84,8 +99,8 @@ mod tests {
     #[test]
     fn test_update() {
         let mut model = DeterministicModel::new(5, 2);
-        model.update_step(0, 0, 1, 1.0);
-        let step = model.predict_step(0, 0);
+        model.update_step(&0, &0, &1, 1.0);
+        let step = model.predict_step(&0, &0);
         assert_eq!(step.reward, 1.0);
         assert_eq!(step.state, 1);
     }
@@ -103,7 +118,7 @@ mod tests {
         let a0 = 0;
         let s0_next = 1;
         let r0 = 1.0;
-        model.update_step(s0, a0, s0_next, r0);
+        model.update_step(&s0, &a0, &s0_next, r0);
 
         // the second time we should see only the sample we inserted
         for _ in 0..5 {
@@ -119,12 +134,12 @@ mod tests {
         let a1 = 1;
         let s1_next = 2;
         let r1 = 2.0;
-        model.update_step(s1, a1, s1_next, r1);
+        model.update_step(&s1, &a1, &s1_next, r1);
         let s2 = 2;
         let a2 = 0;
         let s2_next = 3;
         let r2 = 3.0;
-        model.update_step(s2, a2, s2_next, r2);
+        model.update_step(&s2, &a2, &s2_next, r2);
 
         let seen_samples = vec![(s0, a0), (s1, a1), (s2, a2)];
         let mut rng = rand::thread_rng();
@@ -149,7 +164,7 @@ mod tests {
         let a0 = 0;
         let s0_next = 1;
         let r0 = 1.0;
-        model.update_step(s0, a0, s0_next, r0);
+        model.update_step(&s0, &a0, &s0_next, r0);
 
         // the second time we should see only the sample we inserted
         for _ in 0..5 {
@@ -165,15 +180,15 @@ mod tests {
         let a1 = 1;
         let s1_next = 1;
         let r1 = 2.0;
-        model.update_step(s1, a1, s1_next, r1);
+        model.update_step(&s1, &a1, &s1_next, r1);
         let s2 = 2;
         let a2 = 0;
         let s2_next = 3;
         let r2 = 3.0;
-        model.update_step(s2, a2, s2_next, r2);
+        model.update_step(&s2, &a2, &s2_next, r2);
 
         assert_eq!(
-            model.get_preceding_sa(1).unwrap(),
+            model.get_preceding_sa(&1).unwrap(),
             &vec![
                 StateAction {
                     state: s0,

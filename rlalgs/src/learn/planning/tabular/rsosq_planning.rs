@@ -44,9 +44,9 @@ pub fn learn<P, M, R>(
     _versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    M: Model<i32, i32>,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     R: Rng + ?Sized,
+    M: Model<State = i32, Action = i32>,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 
@@ -59,16 +59,16 @@ where
         };
 
         // 2 get next state and reward
-        let next_step_sample = model.predict_step(state, action);
+        let next_step_sample = model.predict_step(&state, &action);
 
         // 3 appy one-step tabular Q-learning
-        let q_sa = policy.get_q_value(state, action);
+        let q_sa = policy.get_q_value(&state, &action);
         let q_max = policy
-            .get_max_q_value(next_step_sample.state)
+            .get_max_q_value(&next_step_sample.state)
             .map_err(LearningError::PolicyStep)?;
         let new_value =
             q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
-        policy.update_q_entry(state, action, new_value);
+        policy.update_q_entry(&state, &action, new_value);
     }
 
     Ok(policy)

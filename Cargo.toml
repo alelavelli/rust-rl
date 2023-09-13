@@ -24,3 +24,5 @@ ndarray-stats = "0.5.1"
 thiserror = "1.0.40"
 colored = "2.0.0"
 rand_distr = "0.4.3"
+# create for data paraellelism
+rayon = "1.7.0"

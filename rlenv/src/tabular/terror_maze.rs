@@ -15,37 +15,37 @@ const DOWN: i32 = 1;
 const RIGHT: i32 = 2;
 const UP: i32 = 3;
 
-/// Enumeration for the environment FrozenLake
+/// Enumeration for the environment Terror Maze
 ///
 /// Each value contains a bool to indicate if it is a terminal state
 #[derive(PartialEq, Debug)]
-pub enum CliffWalkingStateType {
+pub enum TerrorMazeStateType {
     Start,
     Normal,
     Goal,
-    Cliff,
+    SpearWall,
 }
 
-impl fmt::Display for CliffWalkingStateType {
+impl fmt::Display for TerrorMazeStateType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                CliffWalkingStateType::Normal => "•",
-                CliffWalkingStateType::Cliff => "V",
-                CliffWalkingStateType::Start => "S",
-                CliffWalkingStateType::Goal => "G",
+                TerrorMazeStateType::Normal => "•",
+                TerrorMazeStateType::SpearWall => "◇",
+                TerrorMazeStateType::Start => "S",
+                TerrorMazeStateType::Goal => "G",
             }
         )
     }
 }
 
-/// Cliff walking gridworld tabular environment
+/// Terror Maze gridworld tabular environment
 ///
-/// Cliff walking is a standard gridworld with start and goal states and with a region
-/// called "the cliff" that gives a reward of -100 and sends the agent instantly back
-/// to the start
+/// Terror Maze is a standard gridworld with start and goal states and with a set
+/// of obstacles "the SpearWalls" that if the agent touches then it then he dies.
+/// the SpearWalls are terminal states.
 ///
 /// ## Action Space
 ///
@@ -63,76 +63,135 @@ impl fmt::Display for CliffWalkingStateType {
 ///
 /// ## Rewards
 ///
-///   - Reach goal (G): 0
-///   - the cliff: (C): -100
-///   - Any other step: -1
-pub struct CliffWalking {
+///   - Reach goal (G): +1
+///   - Spearwall state: -1
+///   - Any other step: 0
+///
+/// The suggested discount factor gamma is 0.95
+///
+pub struct TerrorMaze {
     map_dim: (i32, i32),
     initial_row: i32,
     initial_col: i32,
     n_actions: i32,
-    map: Array2<CliffWalkingStateType>,
+    map: Array2<TerrorMazeStateType>,
     current_row: i32,
     current_col: i32,
 }
 
-impl CliffWalking {
-    pub fn new() -> CliffWalking {
+impl TerrorMaze {
+    pub fn new() -> TerrorMaze {
         let initial_row = 3;
-        let initial_col = 0;
-        CliffWalking {
-            map_dim: (4, 10),
+        let initial_col = 1;
+        TerrorMaze {
+            map_dim: (8, 11),
             initial_row,
             initial_col,
             n_actions: 4,
             map: array![
                 [
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
                 ],
                 [
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Goal,
+                    TerrorMazeStateType::SpearWall,
                 ],
                 [
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
-                    CliffWalkingStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
                 ],
                 [
-                    CliffWalkingStateType::Start,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Cliff,
-                    CliffWalkingStateType::Goal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Start,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                ],
+                [
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                ],
+                [
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                ],
+                [
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::Normal,
+                    TerrorMazeStateType::SpearWall,
+                ],
+                [
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
+                    TerrorMazeStateType::SpearWall,
                 ],
             ],
             current_row: initial_row,
@@ -144,16 +203,16 @@ impl CliffWalking {
         row * self.map_dim.1 + col
     }
 
-    fn get_state_type(&self, state: &i32) -> &CliffWalkingStateType {
+    fn get_state_type(&self, state: &i32) -> &TerrorMazeStateType {
         let (row, col) = self.to_row_col(state);
         &self.map[[row as usize, col as usize]]
     }
 
     fn get_state_reward(&self, state: &i32) -> f32 {
         match self.get_state_type(state) {
-            CliffWalkingStateType::Goal => 0.0,
-            CliffWalkingStateType::Cliff => -100.0,
-            _ => -1.0,
+            TerrorMazeStateType::Goal => 1.0,
+            TerrorMazeStateType::SpearWall => -1.0,
+            _ => 0.0,
         }
     }
 
@@ -164,13 +223,13 @@ impl CliffWalking {
     }
 }
 
-impl Default for CliffWalking {
+impl Default for TerrorMaze {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Environment for CliffWalking {
+impl Environment for TerrorMaze {
     type State = i32;
     type Action = i32;
 
@@ -184,7 +243,7 @@ impl Environment for CliffWalking {
         let (row, col) = self.to_row_col(state);
         matches!(
             self.map[[row as usize, col as usize]],
-            CliffWalkingStateType::Goal
+            TerrorMazeStateType::Goal | TerrorMazeStateType::SpearWall
         )
     }
 
@@ -224,18 +283,8 @@ impl Environment for CliffWalking {
                 UP => new_row = cmp::max(new_row - 1, 0),
                 _ => return Err(EnvironmentError::WrongAction),
             };
-
             self.current_row = new_row;
             self.current_col = new_col;
-
-            // If we reach the cliff then the next state is the start state
-            if matches!(
-                self.map[[new_row as usize, new_col as usize]],
-                CliffWalkingStateType::Cliff
-            ) {
-                self.current_row = self.initial_row;
-                self.current_col = self.initial_col;
-            }
         }
 
         Ok(Step {
@@ -243,7 +292,7 @@ impl Environment for CliffWalking {
             action: *action,
             next_state: self.get_state_id(&self.current_row, &self.current_col),
             // here we use new_row and new_col because in case of cliff the reward is -100 but the current state is start
-            reward: self.get_state_reward(&self.get_state_id(&new_row, &new_col)),
+            reward: self.get_state_reward(&self.get_state_id(&self.current_row, &self.current_col)),
             terminated: Environment::is_terminal(
                 self,
                 &self.get_state_id(&self.current_row, &self.current_col),
@@ -253,7 +302,7 @@ impl Environment for CliffWalking {
     }
 
     fn render(&self) {
-        println!("----");
+        println!("=========");
         for row in 0..self.map_dim.0 {
             for col in 0..self.map_dim.1 {
                 if (row == self.current_row) & (col == self.current_col) {
@@ -270,7 +319,7 @@ impl Environment for CliffWalking {
             }
             println!();
         }
-        println!("----");
+        println!("=========");
     }
 
     fn set_state(&mut self, state: &Self::State) {
@@ -278,7 +327,7 @@ impl Environment for CliffWalking {
     }
 }
 
-impl TabularEnvironment for CliffWalking {
+impl TabularEnvironment for TerrorMaze {
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }
@@ -288,7 +337,7 @@ impl TabularEnvironment for CliffWalking {
     }
 }
 
-impl EnvironmentEssay for CliffWalking {
+impl EnvironmentEssay for TerrorMaze {
     type State = i32;
     type Action = i32;
 
@@ -306,7 +355,7 @@ impl EnvironmentEssay for CliffWalking {
     }
 }
 
-impl DiscreteActionEnvironmentEssay for CliffWalking {
+impl DiscreteActionEnvironmentEssay for TerrorMaze {
     type State = i32;
 
     type Action = i32;
@@ -319,97 +368,104 @@ impl DiscreteActionEnvironmentEssay for CliffWalking {
 #[cfg(test)]
 mod tests {
     use crate::{
-        tabular::cliff_walking::{CliffWalkingStateType, DOWN, LEFT, RIGHT, UP},
+        tabular::terror_maze::{TerrorMazeStateType, DOWN, LEFT, RIGHT, UP},
         Environment,
     };
 
-    use super::CliffWalking;
+    use super::TerrorMaze;
 
     #[test]
     fn test_reset() {
-        let env = CliffWalking::new();
+        let env = TerrorMaze::new();
 
-        assert_eq!(env.current_col, 0);
+        assert_eq!(env.current_col, 1);
         assert_eq!(env.current_row, 3);
-        assert_eq!(env.get_state_id(&env.current_row, &env.current_col), 30);
+        assert_eq!(env.get_state_id(&env.current_row, &env.current_col), 34);
         assert_eq!(
             env.get_state_reward(&env.get_state_id(&env.current_row, &env.current_col)),
-            -1.0
+            0.0
         );
         assert_eq!(
             *env.get_state_type(&env.get_state_id(&env.current_row, &env.current_col)),
-            CliffWalkingStateType::Start
+            TerrorMazeStateType::Start
         );
     }
 
     #[test]
     fn test_step_left() {
-        let mut env = CliffWalking::new();
+        let mut env = TerrorMaze::new();
         let mut rng = rand::thread_rng();
 
         let step = env.step(&LEFT, &mut rng).unwrap();
 
-        assert_eq!(step.next_state, 30);
+        assert_eq!(step.next_state, 33);
         assert_eq!(step.reward, -1.0);
-        assert_eq!(step.terminated, false);
+        assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
     }
 
     #[test]
-    fn test_step_right_cliff() {
-        let mut env = CliffWalking::new();
+    fn test_step_right_spear_wall() {
+        let mut env = TerrorMaze::new();
         let mut rng = rand::thread_rng();
 
         let step = env.step(&RIGHT, &mut rng).unwrap();
 
-        assert_eq!(step.next_state, 30);
-        assert_eq!(step.reward, -100.0);
+        assert_eq!(step.next_state, 35);
+        assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
+        assert_eq!(step.truncated, false);
+
+        let step = env.step(&RIGHT, &mut rng).unwrap();
+
+        assert_eq!(step.next_state, 36);
+        assert_eq!(step.reward, -1.0);
+        assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
     }
 
     #[test]
     fn test_step_down() {
-        let mut env = CliffWalking::new();
+        let mut env = TerrorMaze::new();
         let mut rng = rand::thread_rng();
 
         let step = env.step(&DOWN, &mut rng).unwrap();
 
-        assert_eq!(step.next_state, 30);
-        assert_eq!(step.reward, -1.0);
+        assert_eq!(step.next_state, 45);
+        assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
     }
 
     #[test]
     fn test_step_up() {
-        let mut env = CliffWalking::new();
+        let mut env = TerrorMaze::new();
         let mut rng = rand::thread_rng();
 
         let step = env.step(&UP, &mut rng).unwrap();
 
-        assert_eq!(step.next_state, 20);
-        assert_eq!(step.reward, -1.0);
+        assert_eq!(step.next_state, 23);
+        assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
     }
 
     #[test]
     fn test_step_goal() {
-        let mut env = CliffWalking::new();
+        let mut env = TerrorMaze::new();
         env.current_row = 2;
         env.current_col = 9;
         let mut rng = rand::thread_rng();
 
-        let step = env.step(&DOWN, &mut rng).unwrap();
+        let step = env.step(&UP, &mut rng).unwrap();
 
-        assert_eq!(step.next_state, 39);
-        assert_eq!(step.reward, 0.0);
+        assert_eq!(step.next_state, 20);
+        assert_eq!(step.reward, 1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
         assert_eq!(
             *env.get_state_type(&env.get_state_id(&env.current_row, &env.current_col)),
-            CliffWalkingStateType::Goal
+            TerrorMazeStateType::Goal
         );
     }
 }

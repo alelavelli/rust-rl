@@ -44,8 +44,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     let n = params.n as f32;
@@ -67,7 +67,9 @@ where
         }
 
         // choose action from S with policy and store it
-        let action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+        let action = policy
+            .step(&state, rng)
+            .map_err(LearningError::PolicyStep)?;
         actions.push(action);
 
         let mut capital_t = std::f32::INFINITY;
@@ -77,7 +79,7 @@ where
             if t < capital_t {
                 // take action A and observer R and S'
                 let episode_step = environment
-                    .step(actions[t as usize], rng)
+                    .step(&actions[t as usize], rng)
                     .map_err(LearningError::EnvironmentStep)?;
                 // store next state and reward
                 states.push(episode_step.next_state);
@@ -89,7 +91,7 @@ where
                 } else {
                     // otherwise do the next step
                     let next_action = policy
-                        .step(episode_step.next_state, rng)
+                        .step(&episode_step.next_state, rng)
                         .map_err(LearningError::PolicyStep)?;
                     actions.push(next_action);
                 }
@@ -105,14 +107,14 @@ where
                     return_g = rewards[capital_t as usize - 1];
                 } else {
                     return_g = rewards[t as usize]
-                        + params.gamma * policy.expected_q_value(states[(t + 1.0) as usize]);
+                        + params.gamma * policy.expected_q_value(&states[(t + 1.0) as usize]);
                 }
 
                 for k in ((tau as i32 + 1)..=min(t as i32, capital_t as i32 - 1)).rev() {
                     let k_idx = k as usize;
                     let state_k = states[k_idx];
                     let action_k = actions[k_idx];
-                    let a_k_prob = policy.action_prob(state_k, action_k);
+                    let a_k_prob = policy.action_prob(&state_k, &action_k);
 
                     // here we add three terms:
                     // 1. retard at time k
@@ -120,8 +122,8 @@ where
                     // 3. return with chosen action
                     // we compute the second term by getting the expected q value and subtracting the chosen action contribution
                     let other_actions_contribution = params.gamma
-                        * (policy.expected_q_value(state_k)
-                            - a_k_prob * policy.get_q_value(state_k, action_k));
+                        * (policy.expected_q_value(&state_k)
+                            - a_k_prob * policy.get_q_value(&state_k, &action_k));
                     let chosen_action_contribution = params.gamma * (a_k_prob * return_g);
                     return_g = rewards[k as usize - 1]
                         + other_actions_contribution
@@ -129,10 +131,10 @@ where
                 }
 
                 // update policy q at states and actions at time tau
-                let q_sa_tau = policy.get_q_value(states[tau as usize], actions[tau as usize]);
+                let q_sa_tau = policy.get_q_value(&states[tau as usize], &actions[tau as usize]);
                 let new_q_value = q_sa_tau + params.step_size * (return_g - q_sa_tau);
 
-                policy.update_q_entry(states[tau as usize], actions[tau as usize], new_q_value);
+                policy.update_q_entry(&states[tau as usize], &actions[tau as usize], new_q_value);
             }
 
             if versbosity.render_env {

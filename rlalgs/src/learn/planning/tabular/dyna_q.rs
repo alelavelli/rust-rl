@@ -40,7 +40,6 @@ pub struct Params {
 /// - `params`: algorithm parameters
 /// - `rng`: random generator
 /// - `verbosity`: verbosity configuration
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R, M>(
     mut policy: P,
     mut environment: E,
@@ -50,10 +49,10 @@ pub fn learn<P, E, R, M>(
     verbosity: &VerbosityConfig,
 ) -> Result<(P, M), LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
-    M: Model<i32, i32>,
+    M: Model<State = i32, Action = i32>,
 {
     let progress_bar = ProgressBar::new(params.n_iterations as u64);
 
@@ -63,22 +62,29 @@ where
     for _ in (0..params.n_iterations).progress_with(progress_bar) {
         for _ in 0..params.real_world_steps {
             // choose action from S with policy
-            let action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+            let action = policy
+                .step(&state, rng)
+                .map_err(LearningError::PolicyStep)?;
             let episode_step = environment
-                .step(action, rng)
+                .step(&action, rng)
                 .map_err(LearningError::EnvironmentStep)?;
 
             // Direct Learning
-            let q_sa = policy.get_q_value(state, action);
+            let q_sa = policy.get_q_value(&state, &action);
             let q_max = policy
-                .get_max_q_value(episode_step.next_state)
+                .get_max_q_value(&episode_step.next_state)
                 .map_err(LearningError::PolicyStep)?;
             let new_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
-            policy.update_q_entry(state, action, new_value);
+            policy.update_q_entry(&state, &action, new_value);
 
             // update model
-            model.update_step(state, action, episode_step.next_state, episode_step.reward);
+            model.update_step(
+                &state,
+                &action,
+                &episode_step.next_state,
+                episode_step.reward,
+            );
 
             if episode_step.terminated {
                 // if we reached terminal state we reset the environment
@@ -102,16 +108,16 @@ where
             };
 
             // 2 get next state and reward
-            let next_step_sample = model.predict_step(state, action);
+            let next_step_sample = model.predict_step(&state, &action);
 
             // 3 appy one-step tabular Q-learning
-            let q_sa = policy.get_q_value(state, action);
+            let q_sa = policy.get_q_value(&state, &action);
             let q_max = policy
-                .get_max_q_value(next_step_sample.state)
+                .get_max_q_value(&next_step_sample.state)
                 .map_err(LearningError::PolicyStep)?;
             let new_value =
                 q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
-            policy.update_q_entry(state, action, new_value);
+            policy.update_q_entry(&state, &action, new_value);
         }
     }
 

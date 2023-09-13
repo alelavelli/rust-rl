@@ -36,7 +36,6 @@ pub struct Params {
 /// - `params`: algorithm parameters
 /// - `rng`: random generator
 /// - `verbosity`: verbosity configuration
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
     mut policy: P,
     mut environment: E,
@@ -45,8 +44,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     let n = params.n as f32;
@@ -68,7 +67,9 @@ where
         }
 
         // choose action from S with policy and store it
-        let action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+        let action = policy
+            .step(&state, rng)
+            .map_err(LearningError::PolicyStep)?;
         actions.push(action);
 
         let mut capital_t = std::f32::INFINITY;
@@ -78,7 +79,7 @@ where
             if t < capital_t {
                 // take action A and observer R and S'
                 let episode_step = environment
-                    .step(actions[t as usize], rng)
+                    .step(&actions[t as usize], rng)
                     .map_err(LearningError::EnvironmentStep)?;
                 // store next state and reward
                 states.push(episode_step.next_state);
@@ -90,7 +91,7 @@ where
                 } else {
                     // otherwise do the next step
                     let next_action = policy
-                        .step(episode_step.next_state, rng)
+                        .step(&episode_step.next_state, rng)
                         .map_err(LearningError::PolicyStep)?;
                     actions.push(next_action);
                 }
@@ -108,19 +109,19 @@ where
                 if tau + n < capital_t {
                     if params.expected {
                         return_g += params.gamma.pow(n)
-                            * policy.expected_q_value(states[(tau + n) as usize]);
+                            * policy.expected_q_value(&states[(tau + n) as usize]);
                     } else {
                         return_g += params.gamma.pow(n)
                             * policy.get_q_value(
-                                states[(tau + n) as usize],
-                                actions[(tau + n) as usize],
+                                &states[(tau + n) as usize],
+                                &actions[(tau + n) as usize],
                             );
                     }
                 }
                 // update policy q at states and actions at time tau
-                let q_sa_tau = policy.get_q_value(states[tau as usize], actions[tau as usize]);
+                let q_sa_tau = policy.get_q_value(&states[tau as usize], &actions[tau as usize]);
                 let new_q_value = q_sa_tau + params.step_size * (return_g - q_sa_tau);
-                policy.update_q_entry(states[tau as usize], actions[tau as usize], new_q_value);
+                policy.update_q_entry(&states[tau as usize], &actions[tau as usize], new_q_value);
             }
 
             if versbosity.render_env {

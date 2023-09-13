@@ -64,8 +64,8 @@ pub fn generate_episode<P, E, R, S, A>(
     progress_bar: Option<&MultiProgress>,
 ) -> Result<Episode<S, A>, EpisodeGenerationError>
 where
-    P: Policy<S, A>,
-    E: Environment<S, A>,
+    P: Policy<State = S, Action = A>,
+    E: Environment<State = S, Action = A>,
     R: Rng + ?Sized,
     S: Copy,
     A: Copy,
@@ -121,14 +121,14 @@ where
         step_number += 1;
         // get action from policy
         action = policy
-            .step(state, rng)
+            .step(&state, rng)
             .map_err(EpisodeGenerationError::PolicyStep)?;
         // record s_t, a_t pair
         states.push(state);
         actions.push(action);
         // make environment step
         let episode_step = environment
-            .step(action, rng)
+            .step(&action, rng)
             .map_err(EpisodeGenerationError::EnvironmentStep)?;
         state = episode_step.next_state;
         reward = episode_step.reward;

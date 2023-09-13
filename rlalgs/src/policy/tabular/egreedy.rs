@@ -48,8 +48,11 @@ impl Clone for EGreedyTabularPolicy {
     }
 }
 
-impl Policy<i32, i32> for EGreedyTabularPolicy {
-    fn step<R>(&self, state: i32, rng: &mut R) -> Result<i32, PolicyError>
+impl Policy for EGreedyTabularPolicy {
+    type State = i32;
+    type Action = i32;
+
+    fn step<R>(&self, state: &Self::State, rng: &mut R) -> Result<Self::Action, PolicyError>
     where
         R: Rng + ?Sized,
     {
@@ -58,7 +61,7 @@ impl Policy<i32, i32> for EGreedyTabularPolicy {
         //   2- find the action with maximum value
         //   3- create vector of probabilities
         //   4- sample from the distribution
-        let q_values = self.q.slice(s![state, ..]);
+        let q_values = self.q.slice(s![*state, ..]);
 
         // if there are multiple best actions then we take one of them randomly
         let max_value = q_values.max().unwrap();
@@ -75,20 +78,20 @@ impl Policy<i32, i32> for EGreedyTabularPolicy {
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
         probabilities[optimal_action] += 1.0 - self.epsilon;
         let pi = WeightedAliasIndex::new(probabilities).map_err(|_| PolicyError::GenericError)?;
-        Ok(pi.sample(rng) as i32)
+        Ok(pi.sample(rng) as Self::Action)
     }
 
-    fn get_best_a(&self, state: i32) -> Result<i32, PolicyError> {
+    fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError> {
         let optimal_action: usize = self
             .q
-            .slice(s![state, ..])
+            .slice(s![*state, ..])
             .argmax()
             .map_err(|_| PolicyError::GenericError)?;
-        Ok(optimal_action as i32)
+        Ok(optimal_action as Self::Action)
     }
 
-    fn action_prob(&self, state: i32, action: i32) -> f32 {
-        let q_values = self.q.slice(s![state, ..]);
+    fn action_prob(&self, state: &Self::State, action: &Self::Action) -> f32 {
+        let q_values = self.q.slice(s![*state, ..]);
         let optimal_action: usize = q_values
             .argmax()
             .map_err(|_| PolicyError::GenericError)
@@ -96,11 +99,15 @@ impl Policy<i32, i32> for EGreedyTabularPolicy {
         let num_actions = self.q.shape()[1];
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
         probabilities[optimal_action] += 1.0 - self.epsilon;
-        probabilities[action as usize]
+        probabilities[*action as usize]
     }
 }
 
-impl ValuePolicy<i32, i32, Array2<f32>> for EGreedyTabularPolicy {
+impl ValuePolicy for EGreedyTabularPolicy {
+    type State = i32;
+    type Action = i32;
+    type Q = Array2<f32>;
+
     fn get_q(&self) -> &Array2<f32> {
         &self.q
     }
@@ -109,30 +116,30 @@ impl ValuePolicy<i32, i32, Array2<f32>> for EGreedyTabularPolicy {
         self.q = q
     }
 
-    fn update_q_entry(&mut self, state: i32, action: i32, value: f32) {
-        self.q[[state as usize, action as usize]] = value;
+    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32) {
+        self.q[[*state as usize, *action as usize]] = value;
     }
 
-    fn get_q_value(&self, state: i32, action: i32) -> f32 {
-        self.q[[state as usize, action as usize]]
+    fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32 {
+        self.q[[*state as usize, *action as usize]]
     }
 
-    fn get_max_q_value(&self, state: i32) -> Result<f32, PolicyError> {
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError> {
         self.q
-            .slice(s![state, ..])
+            .slice(s![*state, ..])
             .max()
             .map_err(|_| PolicyError::GenericError)
             .copied()
     }
 
-    fn expected_q_value(&self, state: i32) -> f32 {
+    fn expected_q_value(&self, state: &Self::State) -> f32 {
         // update q entry using weighted q value
         let a_probs = Array1::from(
             (0..self.q.dim().1)
-                .map(|i| self.action_prob(state, i as i32))
+                .map(|i| self.action_prob(state, &(i as Self::Action)))
                 .collect::<Vec<f32>>(),
         );
-        self.q.slice(s![state, ..]).dot(&a_probs)
+        self.q.slice(s![*state, ..]).dot(&a_probs)
     }
 }
 
@@ -151,8 +158,8 @@ mod tests {
         pi.q[[0, 0]] = 10.0;
         pi.q[[1, 1]] = 10.0;
         let mut rng = rand::thread_rng();
-        assert_eq!(pi.step(0, &mut rng).unwrap(), 0);
-        assert_eq!(pi.step(1, &mut rng).unwrap(), 1);
+        assert_eq!(pi.step(&0, &mut rng).unwrap(), 0);
+        assert_eq!(pi.step(&1, &mut rng).unwrap(), 1);
     }
 
     #[test]
@@ -176,7 +183,7 @@ mod tests {
         let mut occurrencies: Vec<i32> = vec![0; n_actions];
         let n_samples = 1000;
         for _ in 0..n_samples {
-            occurrencies[pi.step(0, &mut rng).unwrap() as usize] += 1;
+            occurrencies[pi.step(&0, &mut rng).unwrap() as usize] += 1;
         }
         let probs: Vec<f32> = occurrencies
             .iter()
@@ -195,7 +202,7 @@ mod tests {
         let n_states = 2;
         let n_actions = 5;
         let mut pi = EGreedyTabularPolicy::new(n_states, n_actions, 0.0, false);
-        pi.update_q_entry(0, 0, 5.0);
+        pi.update_q_entry(&0, &0, 5.0);
         assert_eq!(pi.q[[0, 0]], 5.0);
     }
 }

@@ -3,7 +3,9 @@ use std::{cmp, fmt};
 use ndarray::{array, Array2};
 use rand::Rng;
 
-use crate::{Environment, EnvironmentError, Step};
+use crate::{
+    DiscreteActionEnvironmentEssay, Environment, EnvironmentError, EnvironmentEssay, Step,
+};
 use colored::Colorize;
 
 use super::TabularEnvironment;
@@ -157,24 +159,24 @@ impl SimpleMaze {
         }
     }
 
-    fn get_state_id(&self, row: i32, col: i32) -> i32 {
+    fn get_state_id(&self, row: &i32, col: &i32) -> i32 {
         row * self.map_dim.1 + col
     }
 
-    fn get_state_type(&self, state: i32) -> &SimpleMazeStateType {
+    fn get_state_type(&self, state: &i32) -> &SimpleMazeStateType {
         let (row, col) = self.to_row_col(state);
         &self.map[[row as usize, col as usize]]
     }
 
-    fn get_state_reward(&self, state: i32) -> f32 {
+    fn get_state_reward(&self, state: &i32) -> f32 {
         match self.get_state_type(state) {
             SimpleMazeStateType::Goal => 1.0,
             _ => 0.0,
         }
     }
 
-    fn to_row_col(&self, state: i32) -> (i32, i32) {
-        let row = (state as f32 / self.map_dim.1 as f32).floor() as i32;
+    fn to_row_col(&self, state: &i32) -> (i32, i32) {
+        let row = (*state as f32 / self.map_dim.1 as f32).floor() as i32;
         let col = state - row * self.map_dim.1;
         (row, col)
     }
@@ -186,14 +188,17 @@ impl Default for SimpleMaze {
     }
 }
 
-impl Environment<i32, i32> for SimpleMaze {
-    fn reset(&mut self) -> i32 {
+impl Environment for SimpleMaze {
+    type State = i32;
+    type Action = i32;
+
+    fn reset(&mut self) -> Self::State {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
-        self.get_state_id(self.current_row, self.current_col)
+        self.get_state_id(&self.current_row, &self.current_col)
     }
 
-    fn is_terminal(&self, state: i32) -> bool {
+    fn is_terminal(&self, state: &Self::State) -> bool {
         let (row, col) = self.to_row_col(state);
         matches!(
             self.map[[row as usize, col as usize]],
@@ -201,12 +206,12 @@ impl Environment<i32, i32> for SimpleMaze {
         )
     }
 
-    fn get_terminal_states(&self) -> Vec<i32> {
-        let mut terminal_states = Vec::<i32>::new();
+    fn get_terminal_states(&self) -> Vec<Self::State> {
+        let mut terminal_states = Vec::<Self::State>::new();
         for row in 0..self.map_dim.0 {
             for col in 0..self.map_dim.1 {
-                let state = self.get_state_id(row, col);
-                if self.is_terminal(state) {
+                let state = self.get_state_id(&row, &col);
+                if Environment::is_terminal(self, &state) {
                     terminal_states.push(state);
                 }
             }
@@ -216,18 +221,21 @@ impl Environment<i32, i32> for SimpleMaze {
 
     fn step<R>(
         &mut self,
-        action: i32,
+        action: &Self::Action,
         #[allow(unused_variables)] rng: &mut R,
-    ) -> Result<Step<i32, i32>, crate::EnvironmentError>
+    ) -> Result<Step<Self::State, Self::Action>, crate::EnvironmentError>
     where
         R: Rng + ?Sized,
     {
-        let starting_state = self.get_state_id(self.current_row, self.current_col);
+        let starting_state = self.get_state_id(&self.current_row, &self.current_col);
 
         let mut new_row = self.current_row;
         let mut new_col = self.current_col;
-        if !self.is_terminal(self.get_state_id(self.current_row, self.current_col)) {
-            match action {
+        if !Environment::is_terminal(
+            self,
+            &self.get_state_id(&self.current_row, &self.current_col),
+        ) {
+            match *action {
                 LEFT => new_col = cmp::max(new_col - 1, 0),
                 DOWN => new_row = cmp::min(new_row + 1, self.map_dim.0 - 1),
                 RIGHT => new_col = cmp::min(new_col + 1, self.map_dim.1 - 1),
@@ -243,11 +251,14 @@ impl Environment<i32, i32> for SimpleMaze {
 
         Ok(Step {
             state: starting_state,
-            action,
-            next_state: self.get_state_id(self.current_row, self.current_col),
+            action: *action,
+            next_state: self.get_state_id(&self.current_row, &self.current_col),
             // here we use new_row and new_col because in case of cliff the reward is -100 but the current state is start
-            reward: self.get_state_reward(self.get_state_id(self.current_row, self.current_col)),
-            terminated: self.is_terminal(self.get_state_id(self.current_row, self.current_col)),
+            reward: self.get_state_reward(&self.get_state_id(&self.current_row, &self.current_col)),
+            terminated: Environment::is_terminal(
+                self,
+                &self.get_state_id(&self.current_row, &self.current_col),
+            ),
             truncated: false,
         })
     }
@@ -272,6 +283,10 @@ impl Environment<i32, i32> for SimpleMaze {
         }
         println!("=========");
     }
+
+    fn set_state(&mut self, state: &Self::State) {
+        (self.current_row, self.current_col) = self.to_row_col(state);
+    }
 }
 
 impl TabularEnvironment for SimpleMaze {
@@ -281,6 +296,34 @@ impl TabularEnvironment for SimpleMaze {
 
     fn get_number_actions(&self) -> i32 {
         self.n_actions
+    }
+}
+
+impl EnvironmentEssay for SimpleMaze {
+    type State = i32;
+    type Action = i32;
+
+    fn is_terminal(&self, state: &Self::State) -> bool {
+        Environment::is_terminal(self, state)
+    }
+
+    fn compute_reward(
+        &self,
+        _state: &Self::State,
+        _action: &Self::Action,
+        next_state: &Self::State,
+    ) -> f32 {
+        self.get_state_reward(next_state)
+    }
+}
+
+impl DiscreteActionEnvironmentEssay for SimpleMaze {
+    type State = i32;
+
+    type Action = i32;
+
+    fn available_actions(&self, _state: &Self::State) -> Vec<Self::Action> {
+        vec![LEFT, RIGHT, UP, DOWN]
     }
 }
 
@@ -299,13 +342,13 @@ mod tests {
 
         assert_eq!(env.current_col, 0);
         assert_eq!(env.current_row, 2);
-        assert_eq!(env.get_state_id(env.current_row, env.current_col), 18);
+        assert_eq!(env.get_state_id(&env.current_row, &env.current_col), 18);
         assert_eq!(
-            env.get_state_reward(env.get_state_id(env.current_row, env.current_col)),
+            env.get_state_reward(&env.get_state_id(&env.current_row, &env.current_col)),
             0.0
         );
         assert_eq!(
-            *env.get_state_type(env.get_state_id(env.current_row, env.current_col)),
+            *env.get_state_type(&env.get_state_id(&env.current_row, &env.current_col)),
             SimpleMazeStateType::Start
         );
     }
@@ -315,7 +358,7 @@ mod tests {
         let mut env = SimpleMaze::new();
         let mut rng = rand::thread_rng();
 
-        let step = env.step(LEFT, &mut rng).unwrap();
+        let step = env.step(&LEFT, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 18);
         assert_eq!(step.reward, 0.0);
@@ -328,14 +371,14 @@ mod tests {
         let mut env = SimpleMaze::new();
         let mut rng = rand::thread_rng();
 
-        let step = env.step(RIGHT, &mut rng).unwrap();
+        let step = env.step(&RIGHT, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 19);
         assert_eq!(step.reward, 0.0);
         assert_eq!(step.terminated, false);
         assert_eq!(step.truncated, false);
 
-        let step = env.step(RIGHT, &mut rng).unwrap();
+        let step = env.step(&RIGHT, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 19);
         assert_eq!(step.reward, 0.0);
@@ -348,7 +391,7 @@ mod tests {
         let mut env = SimpleMaze::new();
         let mut rng = rand::thread_rng();
 
-        let step = env.step(DOWN, &mut rng).unwrap();
+        let step = env.step(&DOWN, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 27);
         assert_eq!(step.reward, 0.0);
@@ -361,7 +404,7 @@ mod tests {
         let mut env = SimpleMaze::new();
         let mut rng = rand::thread_rng();
 
-        let step = env.step(UP, &mut rng).unwrap();
+        let step = env.step(&UP, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 9);
         assert_eq!(step.reward, 0.0);
@@ -376,14 +419,14 @@ mod tests {
         env.current_col = 8;
         let mut rng = rand::thread_rng();
 
-        let step = env.step(UP, &mut rng).unwrap();
+        let step = env.step(&UP, &mut rng).unwrap();
 
         assert_eq!(step.next_state, 8);
         assert_eq!(step.reward, 1.0);
         assert_eq!(step.terminated, true);
         assert_eq!(step.truncated, false);
         assert_eq!(
-            *env.get_state_type(env.get_state_id(env.current_row, env.current_col)),
+            *env.get_state_type(&env.get_state_id(&env.current_row, &env.current_col)),
             SimpleMazeStateType::Goal
         );
     }

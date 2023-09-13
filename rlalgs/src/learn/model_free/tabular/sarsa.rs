@@ -42,7 +42,6 @@ pub struct Params {
 /// into account how likely each action is under the current policy
 /// $$ Q(S, A) \leftarrow Q(S_t, A_t) + \alpha \left[ R + \gamma \sum_a \pi(a | S_{t+1}) Q(S_{t+1}, a) - Q(S_t, A_t) \right] $$
 ///
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
     mut policy: P,
     mut environment: E,
@@ -51,8 +50,8 @@ pub fn learn<P, E, R>(
     versbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>>,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     // Q function initialization
@@ -60,7 +59,7 @@ where
     // therefore we set the value for each terminal state to 0
     for terminal_state in environment.get_terminal_states() {
         for i in 0..environment.get_number_actions() {
-            policy.update_q_entry(terminal_state, i, 0.0);
+            policy.update_q_entry(&terminal_state, &i, 0.0);
         }
     }
     let multiprogress_bar = MultiProgress::new();
@@ -70,7 +69,9 @@ where
         // init environment
         let mut state = environment.reset();
         // choose action from S with policy
-        let mut action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+        let mut action = policy
+            .step(&state, rng)
+            .map_err(LearningError::PolicyStep)?;
 
         let mut step_number = 0;
         // loop until is S is terminal
@@ -78,34 +79,34 @@ where
             step_number += 1;
             // take action A and observer R and S'
             let episode_step = environment
-                .step(action, rng)
+                .step(&action, rng)
                 .map_err(LearningError::EnvironmentStep)?;
 
-            let q_sa = policy.get_q_value(state, action);
+            let q_sa = policy.get_q_value(&state, &action);
 
             if params.expected {
-                let q_expected = policy.expected_q_value(episode_step.next_state);
+                let q_expected = policy.expected_q_value(&episode_step.next_state);
 
                 let new_q_value = q_sa
                     + params.step_size * (episode_step.reward + params.gamma * q_expected - q_sa);
                 // update q entry
-                policy.update_q_entry(state, action, new_q_value);
+                policy.update_q_entry(&state, &action, new_q_value);
 
                 action = policy
-                    .step(episode_step.next_state, rng)
+                    .step(&episode_step.next_state, rng)
                     .map_err(LearningError::PolicyStep)?;
             } else {
                 // choose A' from S' with policy
                 let a_prime = policy
-                    .step(episode_step.next_state, rng)
+                    .step(&episode_step.next_state, rng)
                     .map_err(LearningError::PolicyStep)?;
 
                 // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * Q(S', A') - Q(S, A) ]
-                let q_spap = policy.get_q_value(episode_step.next_state, a_prime);
+                let q_spap = policy.get_q_value(&episode_step.next_state, &a_prime);
                 let new_q_value =
                     q_sa + params.step_size * (episode_step.reward + params.gamma * q_spap - q_sa);
                 // update q entry
-                policy.update_q_entry(state, action, new_q_value);
+                policy.update_q_entry(&state, &action, new_q_value);
                 // set A = A'
                 action = a_prime;
             }

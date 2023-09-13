@@ -37,7 +37,6 @@ pub struct Params {
 /// ## Returns
 ///
 /// `new_policy`: new policy that was optimized over the environment
-#[allow(clippy::too_many_arguments)]
 pub fn learn<P, E, R>(
     mut policy: P,
     mut environment: E,
@@ -46,8 +45,10 @@ pub fn learn<P, E, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
-    P: Policy<i32, i32> + ValuePolicy<i32, i32, Array2<f32>> + Clone,
-    E: Environment<i32, i32> + TabularEnvironment,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>
+        + Clone,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
     // Q function initialization
@@ -55,7 +56,7 @@ where
     // therefore we set the value for each terminal state to 0
     for terminal_state in environment.get_terminal_states() {
         for i in 0..environment.get_number_actions() {
-            policy.update_q_entry(terminal_state, i, 0.0);
+            policy.update_q_entry(&terminal_state, &i, 0.0);
         }
     }
 
@@ -76,12 +77,14 @@ where
             policy.set_q(policy_1.get_q() + policy_2.get_q());
 
             // choose action from S with policy
-            let action = policy.step(state, rng).map_err(LearningError::PolicyStep)?;
+            let action = policy
+                .step(&state, rng)
+                .map_err(LearningError::PolicyStep)?;
 
             step_number += 1;
             // take action A and observer R and S'
             let episode_step = environment
-                .step(action, rng)
+                .step(&action, rng)
                 .map_err(LearningError::EnvironmentStep)?;
 
             let (update_policy, max_policy) =
@@ -91,16 +94,16 @@ where
                     (&mut policy_2, &mut policy_1)
                 };
             // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * max_a Q(S', a) - Q(S, A) ]
-            let q_sa = update_policy.get_q_value(state, action);
+            let q_sa = update_policy.get_q_value(&state, &action);
             let q_max = update_policy.get_q_value(
-                episode_step.next_state,
-                max_policy
-                    .get_best_a(episode_step.next_state)
+                &episode_step.next_state,
+                &max_policy
+                    .get_best_a(&episode_step.next_state)
                     .map_err(LearningError::PolicyStep)?,
             );
             let new_q_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
-            update_policy.update_q_entry(state, action, new_q_value);
+            update_policy.update_q_entry(&state, &action, new_q_value);
 
             // set S = S'
             state = episode_step.next_state;
