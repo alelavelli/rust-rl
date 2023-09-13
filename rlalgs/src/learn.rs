@@ -48,6 +48,8 @@ impl Debug for LearningError {
 pub struct VerbosityConfig {
     // true to render the environment during learning
     pub render_env: bool,
+    // true to render learning progress
+    pub learning_progress: bool,
     // true to show progress bar at episode level
     pub episode_progress: bool,
 }

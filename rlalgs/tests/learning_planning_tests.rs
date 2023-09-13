@@ -40,6 +40,7 @@ fn dyna_q_test() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -93,6 +94,7 @@ fn prioritized_sweeping_test() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 

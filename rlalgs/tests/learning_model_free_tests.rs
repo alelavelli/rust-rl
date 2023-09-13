@@ -37,6 +37,7 @@ fn montecarlo_egreedy_frozen() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -74,6 +75,7 @@ fn sarsa_windy_girdworld() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -129,6 +131,7 @@ fn sarsa_cliff_walking() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -183,6 +186,7 @@ fn qlearning_cliff_walking() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -233,6 +237,7 @@ fn expected_sarsa_cliff_walking() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -283,6 +288,7 @@ fn double_qlearning_cliff_walking() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -338,6 +344,7 @@ fn n_step_sarsa_cliff_walking() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -394,6 +401,7 @@ fn n_step_expected_sarsa_cliff_walking() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -450,6 +458,7 @@ fn n_step_tree_backup_windy_girdworld() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
@@ -523,6 +532,7 @@ fn n_step_q_sigma_windy_girdworld() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 

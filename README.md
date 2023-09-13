@@ -73,6 +73,7 @@ fn main() {
 
     let verbosity = VerbosityConfig {
         render_env: false,
+        learning_progress: false,
         episode_progress: false,
     };
 
