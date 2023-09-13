@@ -88,7 +88,11 @@ where
     R: Rng + ?Sized,
     M: Model<State = i32, Action = i32>,
 {
-    let progress_bar = ProgressBar::new(params.n_iterations as u64);
+    let progress_bar = if verbosity.learning_progress {
+        ProgressBar::new(params.n_iterations as u64)
+    } else {
+        ProgressBar::hidden()
+    };
 
     // let priority queue
     let mut priority_queue: KeyedPriorityQueue<StateAction<i32, i32>, OrderedFloat<f32>> =

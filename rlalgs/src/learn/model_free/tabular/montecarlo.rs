@@ -49,7 +49,7 @@ where
     let mut returns: HashMap<(i32, i32), Vec<f32>> = HashMap::new();
 
     let multiprogress_bar = MultiProgress::new();
-    let progress_bar = if verbosity.episode_progress {
+    let progress_bar = if verbosity.learning_progress {
         multiprogress_bar.add(ProgressBar::new(params.episodes as u64))
     } else {
         multiprogress_bar.add(ProgressBar::hidden())

@@ -51,7 +51,11 @@ where
     let n = params.n as f32;
 
     let multiprogress_bar = MultiProgress::new();
-    let progress_bar = multiprogress_bar.add(ProgressBar::new(params.episodes as u64));
+    let progress_bar = if verbosity.learning_progress {
+        multiprogress_bar.add(ProgressBar::new(params.episodes as u64))
+    } else {
+        multiprogress_bar.add(ProgressBar::hidden())
+    };
 
     for _ in (0..params.episodes).progress_with(progress_bar) {
         let mut states: Vec<i32> = Vec::new();

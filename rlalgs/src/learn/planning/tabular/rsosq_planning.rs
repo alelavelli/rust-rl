@@ -41,14 +41,18 @@ pub fn learn<P, M, R>(
     model: &M,
     params: Params,
     rng: &mut R,
-    _verbosity: &VerbosityConfig,
+    verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     R: Rng + ?Sized,
     M: Model<State = i32, Action = i32>,
 {
-    let progress_bar = ProgressBar::new(params.n_iterations as u64);
+    let progress_bar = if verbosity.learning_progress {
+        ProgressBar::new(params.n_iterations as u64)
+    } else {
+        ProgressBar::hidden()
+    };
 
     for _ in (0..params.n_iterations).progress_with(progress_bar) {
         // 1 select a state and an action at random
