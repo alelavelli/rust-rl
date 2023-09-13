@@ -1,6 +1,6 @@
 //! Model free tabular algorithms
-//! 
-//! It contains the historical implementation of model 
+//!
+//! It contains the historical implementation of model
 //! free tabular learning algorithms.
 pub mod double_qlearning;
 pub mod montecarlo;
