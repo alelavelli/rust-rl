@@ -20,6 +20,8 @@ colored = { workspace = true }
 rand_distr = { workspace = true }
 itertools = { workspace = true }
 rayon = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
 indicatif = "0.17.3"
 keyed_priority_queue = "0.4.1"
 ordered-float = "3.7.0"

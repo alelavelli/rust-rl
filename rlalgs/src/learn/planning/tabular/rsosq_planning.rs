@@ -41,7 +41,7 @@ pub fn learn<P, M, R>(
     model: &M,
     params: Params,
     rng: &mut R,
-    _versbosity: &VerbosityConfig,
+    _verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,

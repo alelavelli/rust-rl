@@ -17,6 +17,10 @@ use rlenv::tabular::TabularEnvironment;
 
 #[test]
 fn montecarlo_egreedy_frozen() {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Debug)
+        .init();
+
     let mut rng = StdRng::seed_from_u64(222);
     let env = FrozenLake::new();
     let policy = EGreedyTabularPolicy::new(

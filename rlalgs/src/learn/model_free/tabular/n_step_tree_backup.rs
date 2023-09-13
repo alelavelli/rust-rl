@@ -41,7 +41,7 @@ pub fn learn<P, E, R>(
     mut environment: E,
     params: Params,
     rng: &mut R,
-    versbosity: &VerbosityConfig,
+    verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
@@ -62,7 +62,7 @@ where
         let state = environment.reset();
         states.push(state);
 
-        if versbosity.render_env {
+        if verbosity.render_env {
             environment.render();
         }
 
@@ -137,7 +137,7 @@ where
                 policy.update_q_entry(&states[tau as usize], &actions[tau as usize], new_q_value);
             }
 
-            if versbosity.render_env {
+            if verbosity.render_env {
                 environment.render();
             }
 

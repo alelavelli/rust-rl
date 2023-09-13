@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
+use log::debug;
 use rand::Rng;
 use rlenv::Environment;
 
@@ -36,18 +37,23 @@ pub fn learn<P, E, R>(
     mut environment: E,
     params: Params,
     rng: &mut R,
-    versbosity: &VerbosityConfig,
+    verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32>,
     E: Environment<State = i32, Action = i32>,
     R: Rng + ?Sized,
 {
+    debug!("Learning process start");
     // initialize variables
     let mut returns: HashMap<(i32, i32), Vec<f32>> = HashMap::new();
 
     let multiprogress_bar = MultiProgress::new();
-    let progress_bar = multiprogress_bar.add(ProgressBar::new(params.episodes as u64));
+    let progress_bar = if verbosity.episode_progress {
+        multiprogress_bar.add(ProgressBar::new(params.episodes as u64))
+    } else {
+        multiprogress_bar.add(ProgressBar::hidden())
+    };
 
     for _ in (0..params.episodes).progress_with(progress_bar) {
         // GENERATE EPISODE
@@ -56,8 +62,8 @@ where
             &mut environment,
             None,
             rng,
-            versbosity.render_env,
-            if versbosity.episode_progress {
+            verbosity.render_env,
+            if verbosity.episode_progress {
                 Some(&multiprogress_bar)
             } else {
                 None
