@@ -6,21 +6,24 @@ use std::{error::Error, fmt::Debug};
 
 use rlenv::EnvironmentError;
 
-use crate::{policy::PolicyError, EpisodeGenerationError};
+use crate::{policy::PolicyError, EpisodeError};
 
 pub mod model_free;
 pub mod planning;
 
-#[derive(thiserror::Error)]
-pub enum LearningError {
-    #[error("Failed to make policy step")]
-    PolicyStep(#[source] PolicyError),
+#[derive(thiserror::Error, Debug)]
+pub enum LearningError<S, A> {
+    #[error("Failed to make policy step from state {state}. Got error {source}")]
+    PolicyStep { state: S, source: PolicyError<A> },
 
-    #[error("Failed to make environment step")]
-    EnvironmentStep(#[source] EnvironmentError),
+    #[error("Failed to make environment step with action {action}. Got error {source}")]
+    EnvironmentStep {
+        source: EnvironmentError<S, A>,
+        action: A,
+    },
 
     #[error("Failed to generate episode")]
-    EpisodeGeneration(#[source] EpisodeGenerationError),
+    EpisodeGeneration(#[source] EpisodeError<S, A>),
 
     #[error("Failed to use model")]
     ModelError,
@@ -28,18 +31,8 @@ pub enum LearningError {
     #[error("Invalid parameters")]
     InvalidParametersError,
 
-    #[error("Failed to learn")]
-    GenericError,
-}
-
-impl Debug for LearningError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self)?;
-        if let Some(source) = self.source() {
-            writeln!(f, "Caused by:\n\t{}", source)?;
-        }
-        Ok(())
-    }
+    #[error("Unknown Error when generating episode. Got error {0}")]
+    Unknown(#[source] Box<dyn Error>),
 }
 
 /// This struct contains parameters for learning algorithms that define

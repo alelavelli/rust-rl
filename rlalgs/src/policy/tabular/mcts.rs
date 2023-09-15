@@ -19,6 +19,18 @@ use crate::{
     utils::arena_tree::{self, TreeArena},
 };
 
+#[derive(thiserror::Error, Debug)]
+pub enum MCTSError {
+    #[error("Failed to compute action because the tree root is different from the actual state")]
+    TreeReuseError,
+
+    #[error("Failed to select node")]
+    NodeSelection,
+
+    #[error("Failed to compute action")]
+    GenericError,
+}
+
 /// Attributes of the MCTS node that is used as value inside the Tree data structure
 ///
 /// - `state`: state represented by the node
@@ -495,7 +507,7 @@ where
     type State = S;
     type Action = A;
 
-    fn step<R>(&self, state: &S, rng: &mut R) -> Result<A, crate::policy::PolicyError>
+    fn step<R>(&self, state: &S, rng: &mut R) -> Result<A, crate::policy::PolicyError<Self::State>>
     where
         R: rand::Rng + ?Sized,
     {
@@ -507,7 +519,10 @@ where
             if self.reuse_tree & tree_ref.get_root().is_some() {
                 let tree_root = tree_ref.get_root().unwrap();
                 if tree_root.read().unwrap().attributes.state != *state {
-                    return Err(crate::policy::PolicyError::GenericError);
+                    return Err(crate::policy::PolicyError::GenericError {
+                        state: (state).clone(),
+                        source: Box::new(MCTSError::TreeReuseError),
+                    });
                 }
                 tree_root
             } else {
@@ -553,7 +568,7 @@ where
         Ok(action)
     }
 
-    fn get_best_a(&self, _state: &S) -> Result<A, crate::policy::PolicyError> {
+    fn get_best_a(&self, _state: &S) -> Result<A, crate::policy::PolicyError<Self::Action>> {
         todo!()
     }
 
@@ -652,25 +667,6 @@ where
                 .mapv(|x| x.sqrt());
         let idx = bounds.argmax().unwrap();
         Ok((read_guard.attributes.actions[idx] as Self::Action, idx))
-    }
-}
-
-#[derive(thiserror::Error)]
-pub enum MCTSError {
-    #[error("Failed to select node")]
-    NodeSelection,
-
-    #[error("Failed to compute action")]
-    GenericError,
-}
-
-impl Debug for MCTSError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self)?;
-        if let Some(source) = self.source() {
-            writeln!(f, "Caused by:\n\t{}", source)?;
-        }
-        Ok(())
     }
 }
 

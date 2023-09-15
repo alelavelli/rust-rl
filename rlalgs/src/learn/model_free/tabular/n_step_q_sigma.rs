@@ -52,7 +52,7 @@ pub fn learn<P, B, E, R>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<P, LearningError>
+) -> Result<P, LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     B: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
@@ -90,7 +90,7 @@ where
         // choose action from S with policy and store it
         let action = behaviour
             .step(&state, rng)
-            .map_err(LearningError::PolicyStep)?;
+            .map_err(|err| LearningError::PolicyStep { source: err, state })?;
         actions.push(action);
 
         let mut capital_t = std::f32::INFINITY;
@@ -99,9 +99,12 @@ where
         loop {
             if t < capital_t {
                 // take action A and observer R and S'
-                let episode_step = environment
-                    .step(&actions[t as usize], rng)
-                    .map_err(LearningError::EnvironmentStep)?;
+                let episode_step = environment.step(&actions[t as usize], rng).map_err(|err| {
+                    LearningError::EnvironmentStep {
+                        source: err,
+                        action: actions[t as usize],
+                    }
+                })?;
                 // store next state and reward
                 states.push(episode_step.next_state);
                 rewards.push(episode_step.reward);
@@ -111,9 +114,13 @@ where
                     capital_t = t + 1.0;
                 } else {
                     // otherwise do the next step
-                    let next_action = behaviour
-                        .step(&episode_step.next_state, rng)
-                        .map_err(LearningError::PolicyStep)?;
+                    let next_action =
+                        behaviour
+                            .step(&episode_step.next_state, rng)
+                            .map_err(|err| LearningError::PolicyStep {
+                                source: err,
+                                state: episode_step.next_state,
+                            })?;
                     actions.push(next_action);
 
                     // select and store sigma t + 1

@@ -42,7 +42,7 @@ pub fn learn<P, M, R>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<P, LearningError>
+) -> Result<P, LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     R: Rng + ?Sized,
@@ -69,7 +69,10 @@ where
         let q_sa = policy.get_q_value(&state, &action);
         let q_max = policy
             .get_max_q_value(&next_step_sample.state)
-            .map_err(LearningError::PolicyStep)?;
+            .map_err(|err| LearningError::PolicyStep {
+                source: err,
+                state: next_step_sample.state,
+            })?;
         let new_value =
             q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
         policy.update_q_entry(&state, &action, new_value);

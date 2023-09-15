@@ -10,26 +10,23 @@ pub mod model;
 pub mod policy;
 pub mod utils;
 
-#[derive(thiserror::Error)]
-pub enum EpisodeGenerationError {
-    #[error("Failed to make policy step")]
-    PolicyStep(#[source] PolicyError),
+#[derive(thiserror::Error, Debug)]
+pub enum EpisodeError<S, A> {
+    #[error("Failed to make policy step from state {state}. Got error {source}")]
+    PolicyStep {
+        state: S,
+        #[source]
+        source: PolicyError<S>,
+    },
 
-    #[error("Failed to make environment step")]
-    EnvironmentStep(#[source] EnvironmentError),
+    #[error("Failed to make environment step with action {action}. Got error {source}")]
+    EnvironmentStep {
+        source: EnvironmentError<S, A>,
+        action: A,
+    },
 
-    #[error("Failed to learn")]
-    GenericError,
-}
-
-impl Debug for EpisodeGenerationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self)?;
-        if let Some(source) = self.source() {
-            writeln!(f, "Caused by:\n\t{}", source)?;
-        }
-        Ok(())
-    }
+    #[error("Unknown Error when generating episode. Got error {0}")]
+    Unknown(#[source] Box<dyn Error>),
 }
 
 /// Support struct representing state-action pair
@@ -62,7 +59,7 @@ pub fn generate_episode<P, E, R, S, A>(
     rng: &mut R,
     render_env: bool,
     progress_bar: Option<&MultiProgress>,
-) -> Result<Episode<S, A>, EpisodeGenerationError>
+) -> Result<Episode<S, A>, EpisodeError<S, A>>
 where
     P: Policy<State = S, Action = A>,
     E: Environment<State = S, Action = A>,
@@ -122,14 +119,18 @@ where
         // get action from policy
         action = policy
             .step(&state, rng)
-            .map_err(EpisodeGenerationError::PolicyStep)?;
+            .map_err(|err| EpisodeError::PolicyStep { source: err, state })?;
         // record s_t, a_t pair
         states.push(state);
         actions.push(action);
         // make environment step
-        let episode_step = environment
-            .step(&action, rng)
-            .map_err(EpisodeGenerationError::EnvironmentStep)?;
+        let episode_step =
+            environment
+                .step(&action, rng)
+                .map_err(|err| EpisodeError::EnvironmentStep {
+                    source: err,
+                    action,
+                })?;
         state = episode_step.next_state;
         reward = episode_step.reward;
 

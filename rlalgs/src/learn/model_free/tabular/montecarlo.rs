@@ -38,7 +38,7 @@ pub fn learn<P, E, R>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<P, LearningError>
+) -> Result<P, LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32>,
     E: Environment<State = i32, Action = i32>,

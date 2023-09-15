@@ -243,7 +243,7 @@ impl Environment for WindyGridworld {
         &mut self,
         action: &Self::Action,
         #[allow(unused_variables)] rng: &mut R,
-    ) -> Result<Step<Self::State, Self::Action>, crate::EnvironmentError>
+    ) -> Result<Step<Self::State, Self::Action>, crate::EnvironmentError<Self::State, Self::Action>>
     where
         R: Rng + ?Sized,
     {
@@ -260,7 +260,7 @@ impl Environment for WindyGridworld {
                 DOWN => new_row = cmp::min(new_row + 1, self.map_dim.0 - 1),
                 RIGHT => new_col = cmp::min(new_col + 1, self.map_dim.1 - 1),
                 UP => new_row = cmp::max(new_row - 1, 0),
-                _ => return Err(EnvironmentError::WrongAction),
+                _ => return Err(EnvironmentError::InvalidAction(*action)),
             };
 
             self.current_row = new_row;

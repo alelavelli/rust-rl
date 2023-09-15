@@ -7,20 +7,10 @@ use std::{error::Error, fmt::Debug};
 
 use rand::Rng;
 
-#[derive(thiserror::Error)]
-pub enum PolicyError {
-    #[error("Failed to compute action")]
-    GenericError,
-}
-
-impl Debug for PolicyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self)?;
-        if let Some(source) = self.source() {
-            writeln!(f, "Caused by:\n\t{}", source)?;
-        }
-        Ok(())
-    }
+#[derive(thiserror::Error, Debug)]
+pub enum PolicyError<S> {
+    #[error("Failed to compute action for state {state}")]
+    GenericError { state: S, source: Box<dyn Error> },
 }
 
 /// Policy trait
@@ -41,12 +31,16 @@ pub trait Policy {
     /// ## Returns
     ///
     /// `action`: identifier of the action wrapped in Result
-    fn step<R>(&self, state: &Self::State, rng: &mut R) -> Result<Self::Action, PolicyError>
+    fn step<R>(
+        &self,
+        state: &Self::State,
+        rng: &mut R,
+    ) -> Result<Self::Action, PolicyError<Self::State>>
     where
         R: Rng + ?Sized;
 
     /// Return best action
-    fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError>;
+    fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError<Self::Action>>;
 
     /// Return the probability to take action in the state
     fn action_prob(&self, state: &Self::State, action: &Self::Action) -> f32;
@@ -82,7 +76,7 @@ pub trait ValuePolicy {
     /// Return the value of the best action even if it does not represent the policy action
     ///
     /// max_a { Q(S, a) }
-    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError>;
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::Action>>;
 
     /// Return expected value for a state
     fn expected_q_value(&self, state: &Self::State) -> f32;
