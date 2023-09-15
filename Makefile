@@ -5,10 +5,10 @@ setup:
 format:
 	cargo fmt
 lint:
-	cargo clippy
+	cargo clippy -- -Dwarnings
 
 test:
-	cargo test -- --test-threads=6
+	cargo test -- --test-threads=12
 
 all: format lint test
 

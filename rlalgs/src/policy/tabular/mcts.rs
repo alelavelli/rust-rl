@@ -1,5 +1,4 @@
 use std::{
-    error::Error,
     fmt::{Debug, Display},
     marker::PhantomData,
     sync::{Arc, RwLock},
