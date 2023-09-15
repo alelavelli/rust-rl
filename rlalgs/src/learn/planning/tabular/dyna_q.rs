@@ -47,7 +47,7 @@ pub fn learn<P, E, R, M>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<(P, M), LearningError>
+) -> Result<(P, M), LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     E: Environment<State = i32, Action = i32> + TabularEnvironment,
@@ -68,16 +68,23 @@ where
             // choose action from S with policy
             let action = policy
                 .step(&state, rng)
-                .map_err(LearningError::PolicyStep)?;
-            let episode_step = environment
-                .step(&action, rng)
-                .map_err(LearningError::EnvironmentStep)?;
+                .map_err(|err| LearningError::PolicyStep { source: err, state })?;
+            let episode_step =
+                environment
+                    .step(&action, rng)
+                    .map_err(|err| LearningError::EnvironmentStep {
+                        source: err,
+                        action,
+                    })?;
 
             // Direct Learning
             let q_sa = policy.get_q_value(&state, &action);
             let q_max = policy
                 .get_max_q_value(&episode_step.next_state)
-                .map_err(LearningError::PolicyStep)?;
+                .map_err(|err| LearningError::PolicyStep {
+                    source: err,
+                    state: episode_step.next_state,
+                })?;
             let new_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);
             policy.update_q_entry(&state, &action, new_value);
@@ -118,7 +125,10 @@ where
             let q_sa = policy.get_q_value(&state, &action);
             let q_max = policy
                 .get_max_q_value(&next_step_sample.state)
-                .map_err(LearningError::PolicyStep)?;
+                .map_err(|err| LearningError::PolicyStep {
+                    source: err,
+                    state: next_step_sample.state,
+                })?;
             let new_value =
                 q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
             policy.update_q_entry(&state, &action, new_value);

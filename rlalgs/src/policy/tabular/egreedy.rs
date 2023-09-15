@@ -1,6 +1,6 @@
 use crate::policy::{Policy, PolicyError, ValuePolicy};
 use ndarray::{s, Array, Array1, Array2};
-use ndarray_rand::rand_distr::{Distribution, Uniform, WeightedAliasIndex};
+use ndarray_rand::rand_distr::{Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
 use rand::seq::IteratorRandom;
@@ -52,7 +52,11 @@ impl Policy for EGreedyTabularPolicy {
     type State = i32;
     type Action = i32;
 
-    fn step<R>(&self, state: &Self::State, rng: &mut R) -> Result<Self::Action, PolicyError>
+    fn step<R>(
+        &self,
+        state: &Self::State,
+        rng: &mut R,
+    ) -> Result<Self::Action, PolicyError<Self::Action>>
     where
         R: Rng + ?Sized,
     {
@@ -77,16 +81,23 @@ impl Policy for EGreedyTabularPolicy {
         let num_actions = self.q.shape()[1];
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
         probabilities[optimal_action] += 1.0 - self.epsilon;
-        let pi = WeightedAliasIndex::new(probabilities).map_err(|_| PolicyError::GenericError)?;
-        Ok(pi.sample(rng) as Self::Action)
+        let pi =
+            WeightedAliasIndex::new(probabilities).map_err(|err| PolicyError::GenericError {
+                state: *state,
+                source: Box::new(err),
+            })?;
+        Ok(rand_distr::Distribution::sample(&pi, rng) as Self::Action)
     }
 
-    fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError> {
-        let optimal_action: usize = self
-            .q
-            .slice(s![*state, ..])
-            .argmax()
-            .map_err(|_| PolicyError::GenericError)?;
+    fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError<Self::Action>> {
+        let optimal_action: usize =
+            self.q
+                .slice(s![*state, ..])
+                .argmax()
+                .map_err(|err| PolicyError::GenericError {
+                    state: *state,
+                    source: Box::new(err),
+                })?;
         Ok(optimal_action as Self::Action)
     }
 
@@ -94,7 +105,10 @@ impl Policy for EGreedyTabularPolicy {
         let q_values = self.q.slice(s![*state, ..]);
         let optimal_action: usize = q_values
             .argmax()
-            .map_err(|_| PolicyError::GenericError)
+            .map_err(|err| PolicyError::GenericError {
+                state: *state,
+                source: Box::new(err),
+            })
             .unwrap();
         let num_actions = self.q.shape()[1];
         let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
@@ -124,11 +138,14 @@ impl ValuePolicy for EGreedyTabularPolicy {
         self.q[[*state as usize, *action as usize]]
     }
 
-    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError> {
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::Action>> {
         self.q
             .slice(s![*state, ..])
             .max()
-            .map_err(|_| PolicyError::GenericError)
+            .map_err(|err| PolicyError::GenericError {
+                state: *state,
+                source: Box::new(err),
+            })
             .copied()
     }
 

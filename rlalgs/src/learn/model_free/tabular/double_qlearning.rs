@@ -43,7 +43,7 @@ pub fn learn<P, E, R>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<P, LearningError>
+) -> Result<P, LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32>
         + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>
@@ -83,13 +83,16 @@ where
             // choose action from S with policy
             let action = policy
                 .step(&state, rng)
-                .map_err(LearningError::PolicyStep)?;
-
+                .map_err(|err| LearningError::PolicyStep { source: err, state })?;
             step_number += 1;
             // take action A and observer R and S'
-            let episode_step = environment
-                .step(&action, rng)
-                .map_err(LearningError::EnvironmentStep)?;
+            let episode_step =
+                environment
+                    .step(&action, rng)
+                    .map_err(|err| LearningError::EnvironmentStep {
+                        source: err,
+                        action,
+                    })?;
 
             let (update_policy, max_policy) =
                 if rand_distr::Bernoulli::new(0.5).unwrap().sample(rng) {
@@ -103,7 +106,7 @@ where
                 &episode_step.next_state,
                 &max_policy
                     .get_best_a(&episode_step.next_state)
-                    .map_err(LearningError::PolicyStep)?,
+                    .map_err(|err| LearningError::PolicyStep { source: err, state })?,
             );
             let new_q_value =
                 q_sa + params.step_size * (episode_step.reward + params.gamma * q_max - q_sa);

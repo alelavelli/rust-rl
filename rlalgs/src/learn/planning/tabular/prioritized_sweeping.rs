@@ -37,14 +37,17 @@ fn compute_update<P>(
     next_state: i32,
     reward: f32,
     params: &Params,
-) -> Result<f32, LearningError>
+) -> Result<f32, LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
 {
     let q_sa = policy.get_q_value(&state_action.state, &state_action.action);
     let q_max = policy
         .get_max_q_value(&next_state)
-        .map_err(LearningError::PolicyStep)?;
+        .map_err(|err| LearningError::PolicyStep {
+            source: err,
+            state: next_state,
+        })?;
     Ok(reward + params.gamma * q_max - q_sa)
 }
 
@@ -81,7 +84,7 @@ pub fn learn<P, E, R, M>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<(P, M), LearningError>
+) -> Result<(P, M), LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     E: Environment<State = i32, Action = i32> + TabularEnvironment,
@@ -105,10 +108,14 @@ where
         // choose action from S with policy
         let action = policy
             .step(&state, rng)
-            .map_err(LearningError::PolicyStep)?;
-        let episode_step = environment
-            .step(&action, rng)
-            .map_err(LearningError::EnvironmentStep)?;
+            .map_err(|err| LearningError::PolicyStep { source: err, state })?;
+        let episode_step =
+            environment
+                .step(&action, rng)
+                .map_err(|err| LearningError::EnvironmentStep {
+                    source: err,
+                    action,
+                })?;
         // update model
         model.update_step(
             &state,

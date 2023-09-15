@@ -8,23 +8,16 @@ use rand::Rng;
 
 pub mod tabular;
 
-#[derive(thiserror::Error)]
-pub enum EnvironmentError {
+#[derive(thiserror::Error, Debug)]
+pub enum EnvironmentError<S, A> {
     #[error("Action is not valid")]
-    WrongAction,
+    InvalidAction(A),
 
-    #[error("Failed to make step")]
-    GenericError,
-}
+    #[error("State is not valid")]
+    InvalidState(S),
 
-impl Debug for EnvironmentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self)?;
-        if let Some(source) = self.source() {
-            writeln!(f, "Caused by:\n\t{}", source)?;
-        }
-        Ok(())
-    }
+    #[error("Failed to compute state for action {action}")]
+    GenericError { action: A, source: Box<dyn Error> },
 }
 
 /// Trait for Tabular Environments
@@ -56,7 +49,7 @@ pub trait Environment {
         &mut self,
         action: &Self::Action,
         rng: &mut R,
-    ) -> Result<Step<Self::State, Self::Action>, EnvironmentError>
+    ) -> Result<Step<Self::State, Self::Action>, EnvironmentError<Self::State, Self::Action>>
     where
         R: Rng + ?Sized;
 

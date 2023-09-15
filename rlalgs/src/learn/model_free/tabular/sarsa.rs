@@ -48,7 +48,7 @@ pub fn learn<P, E, R>(
     params: Params,
     rng: &mut R,
     verbosity: &VerbosityConfig,
-) -> Result<P, LearningError>
+) -> Result<P, LearningError<i32, i32>>
 where
     P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
     E: Environment<State = i32, Action = i32> + TabularEnvironment,
@@ -75,16 +75,20 @@ where
         // choose action from S with policy
         let mut action = policy
             .step(&state, rng)
-            .map_err(LearningError::PolicyStep)?;
+            .map_err(|err| LearningError::PolicyStep { source: err, state })?;
 
         let mut step_number = 0;
         // loop until is S is terminal
         loop {
             step_number += 1;
             // take action A and observer R and S'
-            let episode_step = environment
-                .step(&action, rng)
-                .map_err(LearningError::EnvironmentStep)?;
+            let episode_step =
+                environment
+                    .step(&action, rng)
+                    .map_err(|err| LearningError::EnvironmentStep {
+                        source: err,
+                        action,
+                    })?;
 
             let q_sa = policy.get_q_value(&state, &action);
 
@@ -96,14 +100,20 @@ where
                 // update q entry
                 policy.update_q_entry(&state, &action, new_q_value);
 
-                action = policy
-                    .step(&episode_step.next_state, rng)
-                    .map_err(LearningError::PolicyStep)?;
+                action = policy.step(&episode_step.next_state, rng).map_err(|err| {
+                    LearningError::PolicyStep {
+                        source: err,
+                        state: episode_step.next_state,
+                    }
+                })?;
             } else {
                 // choose A' from S' with policy
-                let a_prime = policy
-                    .step(&episode_step.next_state, rng)
-                    .map_err(LearningError::PolicyStep)?;
+                let a_prime = policy.step(&episode_step.next_state, rng).map_err(|err| {
+                    LearningError::PolicyStep {
+                        source: err,
+                        state: episode_step.next_state,
+                    }
+                })?;
 
                 // update q entry with Q(S, A) = Q(S, A) + step_size [ R + gamma * Q(S', A') - Q(S, A) ]
                 let q_spap = policy.get_q_value(&episode_step.next_state, &a_prime);
