@@ -20,6 +20,8 @@ pub enum EnvironmentError<S, A> {
     GenericError { action: A, source: Box<dyn Error> },
 }
 
+type StepResult<S, A> = Result<Step<S, A>, EnvironmentError<S, A>>;
+
 /// Trait for Tabular Environments
 ///
 /// It defines basic interafces an environment must have.
@@ -49,7 +51,7 @@ pub trait Environment {
         &mut self,
         action: &Self::Action,
         rng: &mut R,
-    ) -> Result<Step<Self::State, Self::Action>, EnvironmentError<Self::State, Self::Action>>
+    ) -> StepResult<Self::State, Self::Action>
     where
         R: Rng + ?Sized;
 
