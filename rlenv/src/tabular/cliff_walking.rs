@@ -267,7 +267,7 @@ impl Environment for CliffWalking {
 
 impl TabularEnvironment for CliffWalking {
     type State = i32;
-    
+
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }
@@ -275,7 +275,6 @@ impl TabularEnvironment for CliffWalking {
     fn get_number_actions(&self) -> i32 {
         self.n_actions
     }
-
 
     fn get_terminal_states(&self) -> Vec<Self::State> {
         let mut terminal_states = Vec::<Self::State>::new();
@@ -289,7 +288,6 @@ impl TabularEnvironment for CliffWalking {
         }
         terminal_states
     }
-
 }
 
 impl EnvironmentEssay for CliffWalking {

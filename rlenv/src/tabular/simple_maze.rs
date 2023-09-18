@@ -278,7 +278,7 @@ impl Environment for SimpleMaze {
 
 impl TabularEnvironment for SimpleMaze {
     type State = i32;
-    
+
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }

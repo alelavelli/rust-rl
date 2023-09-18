@@ -230,7 +230,7 @@ impl Environment for FrozenLake {
 
 impl TabularEnvironment for FrozenLake {
     type State = i32;
-    
+
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }
@@ -251,7 +251,6 @@ impl TabularEnvironment for FrozenLake {
         }
         terminal_states
     }
-
 }
 
 impl EnvironmentEssay for FrozenLake {

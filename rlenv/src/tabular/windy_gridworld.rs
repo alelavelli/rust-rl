@@ -295,7 +295,7 @@ impl Environment for WindyGridworld {
 
 impl TabularEnvironment for WindyGridworld {
     type State = i32;
-    
+
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }

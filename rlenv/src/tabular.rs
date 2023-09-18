@@ -10,7 +10,7 @@ pub mod windy_gridworld;
 /// case are not meaningful.
 pub trait TabularEnvironment {
     type State;
-    
+
     /// Returns the number of states
     fn get_number_states(&self) -> i32;
 
@@ -19,5 +19,4 @@ pub trait TabularEnvironment {
 
     /// Returns the terminal states
     fn get_terminal_states(&self) -> Vec<Self::State>;
-
 }
