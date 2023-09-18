@@ -35,9 +35,6 @@ pub trait Environment {
     /// Returns if the given state is terminal or not
     fn is_terminal(&self, state: &Self::State) -> bool;
 
-    /// Returns the terminal states
-    fn get_terminal_states(&self) -> Vec<Self::State>;
-
     /// step
     ///
     /// ## Parameters

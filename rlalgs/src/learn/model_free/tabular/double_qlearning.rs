@@ -48,7 +48,7 @@ where
     P: Policy<State = i32, Action = i32>
         + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>
         + Clone,
-    E: Environment<State = i32, Action = i32> + TabularEnvironment,
+    E: Environment<State = i32, Action = i32> + TabularEnvironment<State = i32>,
     R: Rng + ?Sized,
 {
     // Q function initialization
