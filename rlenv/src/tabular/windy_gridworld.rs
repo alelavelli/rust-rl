@@ -212,7 +212,10 @@ impl Environment for WindyGridworld {
     type State = i32;
     type Action = i32;
 
-    fn reset(&mut self) -> Self::State {
+    fn reset<R>(&mut self, _rng: &mut R) -> Self::State
+    where
+        R: rand::Rng + ?Sized,
+    {
         self.current_row = self.initial_row;
         self.current_col = self.initial_col;
         self.get_state_id(&self.current_row, &self.current_col)

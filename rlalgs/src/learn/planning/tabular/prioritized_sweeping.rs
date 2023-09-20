@@ -102,7 +102,7 @@ where
         KeyedPriorityQueue::new();
 
     // init environment
-    let mut state = environment.reset();
+    let mut state = environment.reset(rng);
 
     for _ in (0..params.n_iterations).progress_with(progress_bar) {
         // choose action from S with policy
@@ -174,7 +174,7 @@ where
 
         if episode_step.terminated {
             // if we reached terminal state we reset the environment
-            state = environment.reset();
+            state = environment.reset(rng);
         } else {
             state = episode_step.next_state;
         }

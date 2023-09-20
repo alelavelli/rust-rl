@@ -72,7 +72,7 @@ where
     let mut actions: Vec<A> = Vec::new();
     let mut rewards: Vec<f32> = Vec::new();
     // get the initial state
-    let mut state = environment.reset();
+    let mut state = environment.reset(rng);
     let mut action: A;
     let mut reward: f32;
 

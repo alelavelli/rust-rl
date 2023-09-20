@@ -6,6 +6,7 @@ use std::{error::Error, fmt::Debug};
 
 use rand::Rng;
 
+pub mod continuous;
 pub mod tabular;
 
 #[derive(thiserror::Error, Debug)]
@@ -30,7 +31,9 @@ pub trait Environment {
     type Action;
 
     /// Initialize the environment providing the starting state
-    fn reset(&mut self) -> Self::State;
+    fn reset<R>(&mut self, rng: &mut R) -> Self::State
+    where
+        R: Rng + ?Sized;
 
     /// Returns if the given state is terminal or not
     fn is_terminal(&self, state: &Self::State) -> bool;

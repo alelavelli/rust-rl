@@ -71,7 +71,7 @@ where
 
     for _ in (0..params.episodes).progress_with(progress_bar) {
         // init environment
-        let mut state = environment.reset();
+        let mut state = environment.reset(rng);
         // choose action from S with policy
         let mut action = policy
             .step(&state, rng)

@@ -72,7 +72,7 @@ where
 
     for _ in (0..params.episodes).progress_with(progress_bar) {
         // init environment
-        let mut state = environment.reset();
+        let mut state = environment.reset(rng);
 
         let mut step_number = 0;
         // loop until is S is terminal

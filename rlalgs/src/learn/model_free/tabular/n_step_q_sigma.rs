@@ -80,7 +80,7 @@ where
         let mut rhos: Vec<f32> = Vec::new();
 
         // init environment and store it
-        let state = environment.reset();
+        let state = environment.reset(rng);
         states.push(state);
 
         if verbosity.render_env {
