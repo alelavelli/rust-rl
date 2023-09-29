@@ -7,7 +7,7 @@ description = "Reinforcement Learning Algorithms"
 
 [features]
 # gymnasium feature add the `gym` dependency that allows to use a lot of RL environments
-gymnasium = ["dep:gym"]
+gymnasium = ["dep:gym-rs"]
 
 [dependencies]
 ndarray = { workspace = true }
@@ -17,6 +17,4 @@ thiserror = { workspace = true }
 rand = { workspace = true }
 colored = {workspace = true }
 rand_distr = { workspace = true }
-# gym dependency forces the user to have installed Python and gymnasium package
-# therefore, we put it as optional and it can be enabled by the package feature `gymnasium`
-gym = { version = "2.2.1", optional = true }
+gym-rs = {version = "0.3.0", optional = true}
