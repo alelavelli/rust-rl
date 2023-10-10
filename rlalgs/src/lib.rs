@@ -8,7 +8,9 @@ use std::{error::Error, fmt::Debug};
 pub mod learn;
 pub mod model;
 pub mod policy;
+pub mod regressor;
 pub mod utils;
+pub mod value_function;
 
 #[derive(thiserror::Error, Debug)]
 pub enum EpisodeError<S, A> {
