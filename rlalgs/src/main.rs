@@ -1,22 +1,17 @@
-use ndarray::array;
-
-fn f(state: &Vec<f64>, action: &Vec<f64>) {
-    let concat = [&state[..], &action[..]].concat();
-    println!("{:?}", concat);
-    let input = array!(concat);
-    println!("{:?}", input.shape());
-    println!("{:?}", input);
-    let concat = [&state[..], &action[..]].concat();
-    let input = ndarray::Array::from_shape_vec(
-        (1, 4), concat
-    ).unwrap();
-    println!("{:?}", input.shape());
-    println!("{:?}", input);
-}
+use ndarray::{array, Array2, Axis};
+use ndarray_rand::RandomExt;
+use rand::Rng;
+use rand_distr::Uniform;
 
 fn main() {
-    let state = vec![1., 2.];
-    let action = vec![3., 4.];
-    f(&state, &action)
-    
+    let states = vec![[1, 2], [3, 4]];
+    let actions = vec![[1,], [2]];
+    let mut arr = Array2::zeros((2, 3));
+    for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
+        let sa = [&states[i][..], &actions[i][..]].concat();
+        for (j, col) in row.iter_mut().enumerate() {
+            *col = sa[j];
+        }
+    }
+    println!("{:?}", arr);
 }
