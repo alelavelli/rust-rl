@@ -1,13 +1,12 @@
 //! Linear implementation of value function approximator
 
-use ndarray::{Array2, Array1, Axis};
+use ndarray::{Array1, Array2, Axis};
 use ndarray_rand::RandomExt;
 use rand_distr::Uniform;
 
 use super::StateActionValueFunction;
 
 fn build_array(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
-
     ndarray::Array::from_shape_vec(
         [state.len() + action.len()],
         [&state[..], &action[..]].concat(),
@@ -35,7 +34,7 @@ pub struct LinearVF {
 }
 
 /*
-[ ] basis functions 
+[ ] basis functions
 */
 
 impl LinearVF {
@@ -49,9 +48,7 @@ impl LinearVF {
 
     /// Inizialize weight vector randomly between -1 and 1
     fn init_weights(dim: usize) -> ndarray::Array2<f32> {
-        ndarray::Array::random(
-            (1, dim), Uniform::new(-1., 1.)
-        )
+        ndarray::Array::random((1, dim), Uniform::new(-1., 1.))
     }
 }
 

@@ -5,7 +5,7 @@ use rand_distr::Uniform;
 
 fn main() {
     let states = vec![[1, 2], [3, 4]];
-    let actions = vec![[1,], [2]];
+    let actions = vec![[1], [2]];
     let mut arr = Array2::zeros((2, 3));
     for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
         let sa = [&states[i][..], &actions[i][..]].concat();

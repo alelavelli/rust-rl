@@ -55,7 +55,8 @@ pub trait StateActionValueFunction {
         observed_returns: Vec<f32>,
     ) -> Result<(), ValueFunctionError> {
         for i in 0..states.len() {
-            self.update(states[i], actions[i], observed_returns[i]).unwrap();
+            self.update(states[i], actions[i], observed_returns[i])
+                .unwrap();
         }
         Ok(())
     }
