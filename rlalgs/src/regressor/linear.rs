@@ -1,7 +1,7 @@
 //! Linear implementation of value function approximator
 use ndarray::{Array1, Array2, Axis};
-use ndarray_rand::RandomExt;
 use ndarray_linalg::LeastSquaresSvd;
+use ndarray_rand::RandomExt;
 use rand_distr::Uniform;
 
 use crate::value_function::StateActionValueFunction;
@@ -75,14 +75,14 @@ impl StateActionValueFunction for LinearRegression {
     }
 
     fn update_parameters(&mut self, update: Vec<f32>) {
-        self.weights = &self.weights + self.step_size * Array2::from_shape_vec((update.len(), 1), update.clone()).unwrap();
+        self.weights = &self.weights
+            + self.step_size * Array2::from_shape_vec((update.len(), 1), update.clone()).unwrap();
     }
 
     fn reset(&mut self) {
         self.weights = LinearRegression::init_weights(self.dim)
     }
 }
-
 
 impl Regressor for LinearRegression {
     type Input = f32;
@@ -125,7 +125,6 @@ mod tests {
 
     #[test]
     fn test_regressor_trait() {
-        
         let data = init_data(100);
         let mut linreg = LinearRegression::new(data.x.shape()[1], 0.05);
         linreg.fit(&data.x, &data.y);
@@ -142,11 +141,12 @@ mod tests {
                 let sample_state = vec![data.x.column(0)[i]];
                 let sample_action = vec![data.x.column(1)[i]];
                 let sample_target = data.y.column(0)[i];
-                linreg.update(&sample_state, &sample_action, sample_target).unwrap();
+                linreg
+                    .update(&sample_state, &sample_action, sample_target)
+                    .unwrap();
             }
         }
-        // verificare le shape dei pesi 
+        // verificare le shape dei pesi
         assert_abs_diff_eq!(data.w, linreg.weights, epsilon = 1e-3);
-
     }
 }

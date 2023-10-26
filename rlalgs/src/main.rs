@@ -1,11 +1,12 @@
 use ndarray;
 use ndarray_rand::RandomExt;
 use rand_distr::Uniform;
-use rlalgs::{regressor::{linear::LinearRegression, Regressor}, value_function::StateActionValueFunction};
-
+use rlalgs::{
+    regressor::{linear::LinearRegression, Regressor},
+    value_function::StateActionValueFunction,
+};
 
 fn main() {
-
     let n_samples = 100;
     let x = ndarray::Array::random((n_samples, 2), Uniform::new(-1., 1.));
     let w = ndarray::Array::from_shape_vec((2, 1), vec![0.5, 0.1]).unwrap();
@@ -24,9 +25,10 @@ fn main() {
             let sample_state = vec![x.column(0)[i]];
             let sample_action = vec![x.column(1)[i]];
             let sample_target = y.column(0)[i];
-            linreg.update(&sample_state, &sample_action, sample_target).unwrap();
+            linreg
+                .update(&sample_state, &sample_action, sample_target)
+                .unwrap();
         }
     }
     println!("learnt weights are {:?}", linreg.weights);
-    
 }
