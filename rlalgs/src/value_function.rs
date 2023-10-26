@@ -4,7 +4,6 @@
 use std::error::Error;
 
 use itertools::Itertools;
-pub mod linear;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ValueFunctionError {

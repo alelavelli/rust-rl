@@ -18,9 +18,15 @@ colorous = "1.0.10"
 itertools = "0.10.5"
 env_logger = "0.10.0"
 rand = "0.8.5"
-ndarray = "0.15.6"
+ndarray = {version = "0.15.6"}
 ndarray-rand = "0.14.0"
 ndarray-stats = "0.5.1"
+# following https://github.com/rust-ndarray/ndarray/issues/1197
+# to compile openblas on MacOs you can run this command cargo --config 'build.rustflags="-l framework=Accelerate"' build -v
+# otherwise you can add it into ~/.cargo/config file
+# [build]
+# rustflags = "-l framework=Accelerate"
+ndarray-linalg = {version = "0.16.0", features=['openblas-system']}
 thiserror = "1.0.40"
 colored = "2.0.0"
 rand_distr = "0.4.3"

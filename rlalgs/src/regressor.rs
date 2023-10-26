@@ -3,7 +3,9 @@
 
 use std::error::Error;
 
-use ndarray::Array;
+use ndarray::Array2;
+
+pub mod linear;
 
 #[derive(thiserror::Error, Debug)]
 pub enum RegressorError {
@@ -11,13 +13,13 @@ pub enum RegressorError {
     FitError { source: Box<dyn Error> },
 }
 
-pub trait Regressor<I, O> {
+pub trait Regressor {
     type Input;
     type Output;
 
     /// fit the model with the dataset
-    fn fit(&mut self, input: Array<&Self::Input, I>, output: Array<&Self::Input, O>) -> &mut Self;
+    fn fit(&mut self, input: &Array2<Self::Input>, output: &Array2<Self::Input>) -> &mut Self;
 
     /// predict the target from the input
-    fn predict(&mut self, input: Array<&Self::Input, I>) -> Array<&Self::Input, O>;
+    fn predict(&mut self, input: &Array2<Self::Input>) -> Array2<Self::Output>;
 }
