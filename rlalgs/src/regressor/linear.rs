@@ -16,7 +16,7 @@ fn build_array(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
     .unwrap()
 }
 
-fn build_batch_array(states: &Vec<&Vec<f32>>, actions: &Vec<&Vec<f32>>) -> Array2<f32> {
+fn build_batch_array(states: &Vec<&Vec<f32>>, actions: &[&Vec<f32>]) -> Array2<f32> {
     // https://docs.rs/ndarray/0.15.6/ndarray/struct.ArrayBase.html#conversions-from-nested-vecsarrays
     let mut arr = Array2::zeros((states.len(), states[0].len() + actions[0].len()));
     for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
@@ -88,7 +88,7 @@ impl Regressor for LinearRegression {
     type Output = f32;
 
     fn fit(&mut self, input: &Array2<Self::Input>, output: &Array2<Self::Input>) -> &mut Self {
-        self.weights = input.least_squares(&output).unwrap().solution;
+        self.weights = input.least_squares(output).unwrap().solution;
         self
     }
 

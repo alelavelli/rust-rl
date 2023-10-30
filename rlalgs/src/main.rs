@@ -1,4 +1,3 @@
-use ndarray;
 use ndarray_rand::RandomExt;
 use rand_distr::Uniform;
 use rlalgs::{
