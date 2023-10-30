@@ -35,10 +35,6 @@ pub struct LinearRegression {
     step_size: f32,
 }
 
-/*
-[ ] basis functions
-*/
-
 impl LinearRegression {
     pub fn new(dim: usize, step_size: f32) -> LinearRegression {
         LinearRegression {
@@ -69,14 +65,17 @@ impl StateActionValueFunction for LinearRegression {
         result.into_iter().collect()
     }
 
-    fn compute_gradient(&self, state: &Self::State, action: &Self::Action) -> Vec<f32> {
-        // in linear model the gradient is equal to the input
-        build_array(state, action).into_iter().collect()
-    }
-
-    fn update_parameters(&mut self, update: Vec<f32>) {
-        self.weights = &self.weights
-            + self.step_size * Array2::from_shape_vec((update.len(), 1), update.clone()).unwrap();
+    fn update(
+        &mut self,
+        state: &Self::State,
+        action: &Self::Action,
+        observed_return: f32,
+    ) -> Result<(), crate::value_function::ValueFunctionError> {
+        let input = build_array(state, action);
+        let delta = observed_return - self.value(state, action);
+        let update = delta * input;
+        self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
+        Ok(())
     }
 
     fn reset(&mut self) {
@@ -136,6 +135,7 @@ mod tests {
     fn test_sa_value_function_trait() {
         let data = init_data(100);
         let mut linreg = LinearRegression::new(data.x.shape()[1], 0.05);
+
         for _ in 0..5 {
             for i in 0..(data.x.shape()[0]) {
                 let sample_state = vec![data.x.column(0)[i]];

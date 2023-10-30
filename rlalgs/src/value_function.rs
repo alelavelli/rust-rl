@@ -3,8 +3,6 @@
 
 use std::error::Error;
 
-use itertools::Itertools;
-
 #[derive(thiserror::Error, Debug)]
 pub enum ValueFunctionError {
     #[error("Failed to fit value function model")]
@@ -26,25 +24,13 @@ pub trait StateActionValueFunction {
     /// returns the estimated values for an array of pairs
     fn value_batch(&self, states: Vec<&Self::State>, actions: Vec<&Self::Action>) -> Vec<f32>;
 
-    /// compute gradient in the state action
-    fn compute_gradient(&self, state: &Self::State, action: &Self::Action) -> Vec<f32>;
-
-    /// update internal parameters
-    fn update_parameters(&mut self, update: Vec<f32>);
-
     /// update the model with a new sample
     fn update(
         &mut self,
         state: &Self::State,
         action: &Self::Action,
         observed_return: f32,
-    ) -> Result<(), ValueFunctionError> {
-        let gradient = self.compute_gradient(state, action);
-        let delta = observed_return - self.value(state, action);
-        let update = gradient.iter().map(|x| x * delta).collect_vec();
-        self.update_parameters(update);
-        Ok(())
-    }
+    ) -> Result<(), ValueFunctionError>;
 
     /// update the model with a batch of samples
     fn update_batch(
