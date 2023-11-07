@@ -1,6 +1,8 @@
 //! Value function module contains structs and traits for State and State-Action Value function
 //! in continuous environments.
 
+pub mod vf_enum;
+
 use std::error::Error;
 
 #[derive(thiserror::Error, Debug)]
@@ -14,29 +16,27 @@ pub enum ValueFunctionError {
 ///
 /// Given a set of s,a pairs and returns then it can learn an estimator
 /// to generalize over unseen data.
-pub trait StateActionValueFunction {
-    type State;
-    type Action;
+pub trait StateActionValueFunction<S, A> {
 
     /// returns the estimated value of a single pair
-    fn value(&self, state: &Self::State, action: &Self::Action) -> f32;
+    fn value(&self, state: &S, action: &A) -> f32;
 
     /// returns the estimated values for an array of pairs
-    fn value_batch(&self, states: Vec<&Self::State>, actions: Vec<&Self::Action>) -> Vec<f32>;
+    fn value_batch(&self, states: Vec<&S>, actions: Vec<&A>) -> Vec<f32>;
 
     /// update the model with a new sample
     fn update(
         &mut self,
-        state: &Self::State,
-        action: &Self::Action,
+        state: &S,
+        action: &A,
         observed_return: f32,
     ) -> Result<(), ValueFunctionError>;
 
     /// update the model with a batch of samples
     fn update_batch(
         &mut self,
-        states: Vec<&Self::State>,
-        actions: Vec<&Self::Action>,
+        states: Vec<&S>,
+        actions: Vec<&A>,
         observed_returns: Vec<f32>,
     ) -> Result<(), ValueFunctionError> {
         for i in 0..states.len() {

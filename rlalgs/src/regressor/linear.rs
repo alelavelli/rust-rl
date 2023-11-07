@@ -8,7 +8,15 @@ use crate::value_function::StateActionValueFunction;
 
 use super::Regressor;
 
-fn build_array(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
+fn build_array_i32(state: &Vec<f32>, action: &i32) -> Array1<f32> {
+    ndarray::Array::from_shape_vec(
+        [state.len() + 1],
+        [&state[..], &[*action as f32]].concat(),
+    )
+    .unwrap()
+}
+
+fn build_array_f32(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
     ndarray::Array::from_shape_vec(
         [state.len() + action.len()],
         [&state[..], &action[..]].concat(),
@@ -16,7 +24,19 @@ fn build_array(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
     .unwrap()
 }
 
-fn build_batch_array(states: &Vec<&Vec<f32>>, actions: &[&Vec<f32>]) -> Array2<f32> {
+fn build_batch_array_i32(states: &Vec<&Vec<f32>>, actions: &[&i32]) -> Array2<f32> {
+    // https://docs.rs/ndarray/0.15.6/ndarray/struct.ArrayBase.html#conversions-from-nested-vecsarrays
+    let mut arr = Array2::zeros((states.len(), states[0].len() + 1));
+    for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
+        let sa = [&states[i][..], &[*actions[i] as f32]].concat();
+        for (j, col) in row.iter_mut().enumerate() {
+            *col = sa[j];
+        }
+    }
+    arr
+}
+
+fn build_batch_array_f32(states: &Vec<&Vec<f32>>, actions: &[&Vec<f32>]) -> Array2<f32> {
     // https://docs.rs/ndarray/0.15.6/ndarray/struct.ArrayBase.html#conversions-from-nested-vecsarrays
     let mut arr = Array2::zeros((states.len(), states[0].len() + actions[0].len()));
     for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
@@ -50,28 +70,58 @@ impl LinearRegression {
     }
 }
 
-impl StateActionValueFunction for LinearRegression {
-    type State = Vec<f32>;
-    type Action = Vec<f32>;
-
-    fn value(&self, state: &Self::State, action: &Self::Action) -> f32 {
-        let input = build_array(state, action);
+/// Implementation of StateActionValueFunction for contunuous state and discrete action
+impl StateActionValueFunction<Vec<f32>, i32> for LinearRegression {
+    fn value(&self, state: &Vec<f32>, action: &i32) -> f32 {
+        let input = build_array_i32(state, action);
         input.dot(&self.weights)[0]
     }
 
-    fn value_batch(&self, states: Vec<&Self::State>, actions: Vec<&Self::Action>) -> Vec<f32> {
-        let input = build_batch_array(&states, &actions);
+    fn value_batch(&self, states: Vec<&Vec<f32>>, actions: Vec<&i32>) -> Vec<f32> {
+        let input = build_batch_array_i32(&states, &actions);
         let result = input.dot(&self.weights);
         result.into_iter().collect()
     }
 
     fn update(
         &mut self,
-        state: &Self::State,
-        action: &Self::Action,
+        state: &Vec<f32>,
+        action: &i32,
         observed_return: f32,
     ) -> Result<(), crate::value_function::ValueFunctionError> {
-        let input = build_array(state, action);
+        let input = build_array_i32(state, action);
+        let delta = observed_return - self.value(state, action);
+        let update = delta * input;
+        self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
+        Ok(())
+    }
+
+    fn reset(&mut self) {
+        self.weights = LinearRegression::init_weights(self.dim)
+    }
+}
+
+/// Implementation of StateActionValueFunction for continuous state and action
+impl StateActionValueFunction<Vec<f32>, Vec<f32>> for LinearRegression {
+
+    fn value(&self, state: &Vec<f32>, action: &Vec<f32>) -> f32 {
+        let input = build_array_f32(state, action);
+        input.dot(&self.weights)[0]
+    }
+
+    fn value_batch(&self, states: Vec<&Vec<f32>>, actions: Vec<&Vec<f32>>) -> Vec<f32> {
+        let input = build_batch_array_f32(&states, &actions);
+        let result = input.dot(&self.weights);
+        result.into_iter().collect()
+    }
+
+    fn update(
+        &mut self,
+        state: &Vec<f32>,
+        action: &Vec<f32>,
+        observed_return: f32,
+    ) -> Result<(), crate::value_function::ValueFunctionError> {
+        let input = build_array_f32(state, action);
         let delta = observed_return - self.value(state, action);
         let update = delta * input;
         self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
