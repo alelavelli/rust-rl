@@ -9,11 +9,8 @@ use crate::value_function::StateActionValueFunction;
 use super::Regressor;
 
 fn build_array_i32(state: &Vec<f32>, action: &i32) -> Array1<f32> {
-    ndarray::Array::from_shape_vec(
-        [state.len() + 1],
-        [&state[..], &[*action as f32]].concat(),
-    )
-    .unwrap()
+    ndarray::Array::from_shape_vec([state.len() + 1], [&state[..], &[*action as f32]].concat())
+        .unwrap()
 }
 
 fn build_array_f32(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
@@ -103,7 +100,6 @@ impl StateActionValueFunction<Vec<f32>, i32> for LinearRegression {
 
 /// Implementation of StateActionValueFunction for continuous state and action
 impl StateActionValueFunction<Vec<f32>, Vec<f32>> for LinearRegression {
-
     fn value(&self, state: &Vec<f32>, action: &Vec<f32>) -> f32 {
         let input = build_array_f32(state, action);
         input.dot(&self.weights)[0]

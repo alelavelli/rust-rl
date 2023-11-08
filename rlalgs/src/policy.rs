@@ -76,7 +76,7 @@ pub trait ValuePolicy {
     /// Return the value of the best action even if it does not represent the policy action
     ///
     /// max_a { Q(S, a) }
-    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::Action>>;
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::State>>;
 
     /// Return expected value for a state
     fn expected_q_value(&self, state: &Self::State) -> f32;

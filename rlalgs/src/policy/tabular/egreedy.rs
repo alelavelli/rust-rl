@@ -1,13 +1,14 @@
 use crate::policy::{Policy, PolicyError, ValuePolicy};
 use crate::regressor::linear::LinearRegression;
-use crate::value_function::StateActionValueFunction;
 use crate::value_function::vf_enum::ValueFunctionEnum;
+use crate::value_function::StateActionValueFunction;
 use ndarray::{s, Array, Array1, Array2};
 use ndarray_rand::rand_distr::{Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
 use rand::seq::IteratorRandom;
 use rand::Rng;
+use rand_distr::WeightedError;
 
 /// Epsilon greedy policy
 ///
@@ -16,28 +17,75 @@ use rand::Rng;
 /// This policy works with discrete action space.
 /// It is a value-based policy that needs the state-action value function, it can be
 /// a table in case of discrete state space or a function approximator otherwise.
+///
+/// The struct has generic type for Q function that is different according to the action space.
+/// The fields `state_dim` and `action_dim` define the state and action space. E-greedy policy
+/// is defined for discrete action space only, therefore, `action_dim` represents the number
+/// of discrete actions. Whereas, the state space can be either discrete or continuous, when
+/// it is discrete it represents the number of states and when it is continuous it represents
+/// the number of dimensions that describe the state.
 pub struct EGreedyPolicy<Q> {
     q: Q,
     epsilon: f32,
     state_dim: usize,
-    action_dim: usize
+    action_dim: usize,
 }
 
-impl<Q> Clone for EGreedyPolicy<Q> 
-where Q: Clone
+impl<Q> Clone for EGreedyPolicy<Q>
+where
+    Q: Clone,
 {
     fn clone(&self) -> Self {
         Self {
             q: self.q.clone(),
             epsilon: self.epsilon,
             state_dim: self.state_dim,
-            action_dim: self.action_dim
+            action_dim: self.action_dim,
         }
     }
 }
 
+impl<Q> EGreedyPolicy<Q> {
+    fn optimal_action<R>(&self, q_values: &Array1<f32>, rng: &mut R) -> i32
+    where
+        R: Rng + ?Sized,
+    {
+        // if there are multiple best actions then we take one of them randomly
+        let max_value = q_values.max().unwrap();
+        let mut best_actions: Vec<usize> = Vec::new();
+        let n_actions = q_values.len();
+        for i in 0..n_actions {
+            if q_values[i] == *max_value {
+                best_actions.push(i);
+            }
+        }
+        *best_actions.iter().choose(rng).unwrap() as i32
+    }
+
+    fn actions_probabilities<R>(&self, q_values: &Array1<f32>, rng: &mut R) -> Vec<f32>
+    where
+        R: Rng + ?Sized,
+    {
+        let optimal_action = self.optimal_action(q_values, rng);
+
+        let mut probabilities: Vec<f32> =
+            vec![self.epsilon / self.action_dim as f32; self.action_dim];
+        probabilities[optimal_action as usize] += 1.0 - self.epsilon;
+        probabilities
+    }
+
+    fn sample_action<R>(&self, q_values: &Array1<f32>, rng: &mut R) -> Result<i32, WeightedError>
+    where
+        R: Rng + ?Sized,
+    {
+        let probabilities = self.actions_probabilities(q_values, rng);
+        let pi = WeightedAliasIndex::new(probabilities)?;
+        Ok(rand_distr::Distribution::sample(&pi, rng) as i32)
+    }
+}
+
 impl EGreedyPolicy<Array2<f32>> {
-    /// Creates a discrete state e-greedy policy that represents the state-action
+    /// Creates a discrete state e-greedy policy that has the state-action
     /// value function as two dimensional array that stores for each state-action
     /// entry the estimated value.
     ///
@@ -61,8 +109,48 @@ impl EGreedyPolicy<Array2<f32>> {
             },
             epsilon,
             state_dim: number_states,
-            action_dim: number_actions
+            action_dim: number_actions,
         }
+    }
+
+    fn action_values_for_state(&self, state: &i32) -> Array1<f32> {
+        self.q.slice(s![*state, ..]).to_owned()
+    }
+}
+
+type ContinuousQ = Box<dyn StateActionValueFunction<Vec<f32>, i32>>;
+impl EGreedyPolicy<ContinuousQ> {
+    /// Creates a continuous state and discrete actions e-greedy policy.
+    /// The state-action value function is represented by a regressor that takes
+    /// as input the state and the action and returns the estimated value
+    pub fn new_continuous(
+        state_dim: usize,
+        number_actions: usize,
+        epsilon: f32,
+        q_approximator: ValueFunctionEnum,
+    ) -> EGreedyPolicy<ContinuousQ> {
+        let q = match q_approximator {
+            ValueFunctionEnum::LinearRegression { step_size } => {
+                LinearRegression::new(state_dim + number_actions, step_size)
+            }
+        };
+        EGreedyPolicy {
+            q: Box::new(q),
+            epsilon,
+            state_dim,
+            action_dim: number_actions,
+        }
+    }
+
+    fn action_values_for_state(&self, state: &Vec<f32>) -> Array1<f32> {
+        let actions_ids: Vec<i32> = (0..self.action_dim).map(|x| x as i32).collect();
+        let mut actions: Vec<&i32> = Vec::new();
+        let mut states: Vec<&Vec<f32>> = Vec::new();
+        for item in actions_ids.iter() {
+            actions.push(item);
+            states.push(state);
+        }
+        Array1::from_shape_vec((self.action_dim,), self.q.value_batch(states, actions)).unwrap()
     }
 }
 
@@ -78,59 +166,28 @@ impl Policy for EGreedyPolicy<Array2<f32>> {
     where
         R: Rng + ?Sized,
     {
-        // The operations are the followings:
-        //   1- get the Q(s, a) values for the given state observation
-        //   2- find the action with maximum value
-        //   3- create vector of probabilities
-        //   4- sample from the distribution
-        let q_values = self.q.slice(s![*state, ..]);
-
-        // if there are multiple best actions then we take one of them randomly
-        let max_value = q_values.max().unwrap();
-        let mut best_actions: Vec<usize> = Vec::new();
-        let n_actions = q_values.len();
-        for i in 0..n_actions {
-            if q_values[i] == *max_value {
-                best_actions.push(i);
-            }
-        }
-        let optimal_action: usize = *best_actions.iter().choose(rng).unwrap();
-
-        let num_actions = self.q.shape()[1];
-        let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
-        probabilities[optimal_action] += 1.0 - self.epsilon;
-        let pi =
-            WeightedAliasIndex::new(probabilities).map_err(|err| PolicyError::GenericError {
-                state: *state,
+        let q_values = self.action_values_for_state(state);
+        Ok(self
+            .sample_action(&q_values, rng)
+            .map_err(|err| PolicyError::GenericError {
+                state,
                 source: Box::new(err),
-            })?;
-        Ok(rand_distr::Distribution::sample(&pi, rng) as Self::Action)
+            })
+            .unwrap() as Self::Action)
     }
 
     fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError<Self::Action>> {
-        let optimal_action: usize =
-            self.q
-                .slice(s![*state, ..])
-                .argmax()
-                .map_err(|err| PolicyError::GenericError {
-                    state: *state,
-                    source: Box::new(err),
-                })?;
-        Ok(optimal_action as Self::Action)
+        Ok(self.optimal_action(
+            &self.action_values_for_state(state),
+            &mut rand::thread_rng(),
+        ) as Self::Action)
     }
 
     fn action_prob(&self, state: &Self::State, action: &Self::Action) -> f32 {
-        let q_values = self.q.slice(s![*state, ..]);
-        let optimal_action: usize = q_values
-            .argmax()
-            .map_err(|err| PolicyError::GenericError {
-                state: *state,
-                source: Box::new(err),
-            })
-            .unwrap();
-        let num_actions = self.q.shape()[1];
-        let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
-        probabilities[optimal_action] += 1.0 - self.epsilon;
+        let probabilities = self.actions_probabilities(
+            &self.action_values_for_state(state),
+            &mut rand::thread_rng(),
+        );
         probabilities[*action as usize]
     }
 }
@@ -156,11 +213,11 @@ impl ValuePolicy for EGreedyPolicy<Array2<f32>> {
         self.q[[*state as usize, *action as usize]]
     }
 
-    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::Action>> {
-        self.q
-            .slice(s![*state, ..])
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::State>> {
+        let q_values = Array1::from(self.action_values_for_state(state));
+        q_values
             .max()
-            .map_err(|err| PolicyError::GenericError {
+            .map_err(|err| PolicyError::<Self::State>::GenericError {
                 state: *state,
                 source: Box::new(err),
             })
@@ -168,34 +225,12 @@ impl ValuePolicy for EGreedyPolicy<Array2<f32>> {
     }
 
     fn expected_q_value(&self, state: &Self::State) -> f32 {
-        // update q entry using weighted q value
-        let a_probs = Array1::from(
-            (0..self.q.dim().1)
-                .map(|i| self.action_prob(state, &(i as Self::Action)))
-                .collect::<Vec<f32>>(),
-        );
-        self.q.slice(s![*state, ..]).dot(&a_probs)
-    }
-}
-
-type ContinuousQ = Box<dyn StateActionValueFunction<Vec<f32>, i32>>;
-impl EGreedyPolicy<ContinuousQ>
-{
-    /// Creates a continuous state and discrete actions e-greedy policy.
-    /// The state-action value function is represented by a regressor that takes
-    /// as input the state and the action and returns the estimated value
-    pub fn new_continuous(
-        state_dim: usize,
-        number_actions: usize,
-        epsilon: f32,
-        q_approximator: ValueFunctionEnum,
-    ) -> EGreedyPolicy<ContinuousQ> {
-        let q = match q_approximator {
-            ValueFunctionEnum::LinearRegression { step_size } => { 
-                LinearRegression::new(state_dim + number_actions, step_size) 
-            },
-        };
-        EGreedyPolicy { q: Box::new(q), epsilon, state_dim, action_dim: number_actions }
+        let probabilities = Array1::from(self.actions_probabilities(
+            &self.action_values_for_state(state),
+            &mut rand::thread_rng(),
+        ));
+        let q_values = Array1::from(self.action_values_for_state(state));
+        q_values.dot(&probabilities)
     }
 }
 
@@ -209,65 +244,30 @@ impl Policy for EGreedyPolicy<ContinuousQ> {
         rng: &mut R,
     ) -> Result<Self::Action, PolicyError<Self::State>>
     where
-        R: Rng + ?Sized {
-        let actions_ids: Vec<i32> = (0..self.action_dim).into_iter().map(|x| x as i32).collect();
-        let mut actions: Vec<&i32> = Vec::new();
-        let mut states: Vec<&Vec<f32>> = Vec::new();
-        for i in 0..self.action_dim {
-            actions.push(&actions_ids[i]);
-            states.push(&state);
-        }
-        let q_values = self.q.value_batch(states, actions);
-        let max_value = q_values.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-        let mut best_actions: Vec<usize> = Vec::new();
-        let n_actions = q_values.len();
-        for i in 0..n_actions {
-            if q_values[i] == *max_value {
-                best_actions.push(i);
-            }
-        }
-        let optimal_action: usize = *best_actions.iter().choose(rng).unwrap();
-
-        let num_actions = self.action_dim;
-        let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
-        probabilities[optimal_action] += 1.0 - self.epsilon;
-        let pi =
-            WeightedAliasIndex::new(probabilities).map_err(|err| PolicyError::GenericError {
+        R: Rng + ?Sized,
+    {
+        let q_values = self.action_values_for_state(state);
+        Ok(self
+            .sample_action(&q_values, rng)
+            .map_err(|err| PolicyError::GenericError {
                 state,
                 source: Box::new(err),
-            }).unwrap();
-        Ok(rand_distr::Distribution::sample(&pi, rng) as Self::Action)
+            })
+            .unwrap() as Self::Action)
     }
 
     fn get_best_a(&self, state: &Self::State) -> Result<Self::Action, PolicyError<Self::Action>> {
-        let actions_ids: Vec<i32> = (0..self.action_dim).into_iter().map(|x| x as i32).collect();
-        let mut actions: Vec<&i32> = Vec::new();
-        let mut states: Vec<&Vec<f32>> = Vec::new();
-        for i in 0..self.action_dim {
-            actions.push(&actions_ids[i]);
-            states.push(&state);
-        }
-        let optimal_action: usize = self.q.value_batch(states, actions)
-            .iter().enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap().0;
-        Ok(optimal_action as Self::Action)
-
+        Ok(self.optimal_action(
+            &self.action_values_for_state(state),
+            &mut rand::thread_rng(),
+        ) as Self::Action)
     }
 
     fn action_prob(&self, state: &Self::State, action: &Self::Action) -> f32 {
-        let actions_ids: Vec<i32> = (0..self.action_dim).into_iter().map(|x| x as i32).collect();
-        let mut actions: Vec<&i32> = Vec::new();
-        let mut states: Vec<&Vec<f32>> = Vec::new();
-        for i in 0..self.action_dim {
-            actions.push(&actions_ids[i]);
-            states.push(&state);
-        }
-        let optimal_action: usize = self.q.value_batch(states, actions)
-            .iter().enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap()).unwrap().0;
-        let num_actions = self.action_dim;
-        let mut probabilities: Vec<f32> = vec![self.epsilon / num_actions as f32; num_actions];
-        probabilities[optimal_action] += 1.0 - self.epsilon;
+        let probabilities = self.actions_probabilities(
+            &self.action_values_for_state(state),
+            &mut rand::thread_rng(),
+        );
         probabilities[*action as usize]
     }
 }
@@ -295,36 +295,24 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
         self.q.value(state, action)
     }
 
-    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::Action>> {
-        let actions_ids: Vec<i32> = (0..self.action_dim).into_iter().map(|x| x as i32).collect();
-        let mut actions: Vec<&i32> = Vec::new();
-        let mut states: Vec<&Vec<f32>> = Vec::new();
-        for i in 0..self.action_dim {
-            actions.push(&actions_ids[i]);
-            states.push(&state);
-        }
-        Ok(*self.q.value_batch(states, actions)
-            .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
-        
+    fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::State>> {
+        let q_values = Array1::from(self.action_values_for_state(state));
+        q_values
+            .max()
+            .map_err(|err| PolicyError::<Self::State>::GenericError {
+                state: state.clone(),
+                source: Box::new(err),
+            })
+            .copied()
     }
 
     fn expected_q_value(&self, state: &Self::State) -> f32 {
-        // update q entry using weighted q value
-        let a_probs = Array1::from(
-            (0..self.action_dim)
-                .map(|i| self.action_prob(state, &(i as Self::Action)))
-                .collect::<Vec<f32>>(),
-        );
-        let actions_ids: Vec<i32> = (0..self.action_dim).into_iter().map(|x| x as i32).collect();
-        let mut actions: Vec<&i32> = Vec::new();
-        let mut states: Vec<&Vec<f32>> = Vec::new();
-        for i in 0..self.action_dim {
-            actions.push(&actions_ids[i]);
-            states.push(&state);
-        }
-        let q_values = self.q.value_batch(states, actions);
-        Array1::from_shape_vec((self.action_dim,), q_values).unwrap().dot(&a_probs)
+        let probabilities = Array1::from(self.actions_probabilities(
+            &self.action_values_for_state(state),
+            &mut rand::thread_rng(),
+        ));
+        let q_values = Array1::from(self.action_values_for_state(state));
+        q_values.dot(&probabilities)
     }
 }
 

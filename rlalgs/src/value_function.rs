@@ -17,7 +17,6 @@ pub enum ValueFunctionError {
 /// Given a set of s,a pairs and returns then it can learn an estimator
 /// to generalize over unseen data.
 pub trait StateActionValueFunction<S, A> {
-
     /// returns the estimated value of a single pair
     fn value(&self, state: &S, action: &A) -> f32;
 
