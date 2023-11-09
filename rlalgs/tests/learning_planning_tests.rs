@@ -4,7 +4,7 @@ use rlalgs::generate_episode;
 use rlalgs::learn::planning::tabular::{dyna_q, prioritized_sweeping};
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::tabular::deterministic::DeterministicModel;
-use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
+use rlalgs::policy::egreedy::EGreedyPolicy;
 use rlenv::tabular::simple_maze::SimpleMaze;
 use rlenv::tabular::TabularEnvironment;
 use rlenv::Environment;
@@ -17,7 +17,7 @@ fn dyna_q_test() {
     let env = SimpleMaze::new();
 
     // Create policy
-    let policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyPolicy::new_discrete(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
@@ -71,7 +71,7 @@ fn prioritized_sweeping_test() {
     let env = SimpleMaze::new();
 
     // Create policy
-    let policy = EGreedyTabularPolicy::new(
+    let policy = EGreedyPolicy::new_discrete(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,

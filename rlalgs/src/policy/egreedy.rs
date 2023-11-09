@@ -83,6 +83,10 @@ impl<Q> EGreedyPolicy<Q> {
         let pi = WeightedAliasIndex::new(probabilities)?;
         Ok(rand_distr::Distribution::sample(&pi, rng) as i32)
     }
+
+    pub fn set_epsilon(&mut self, epsilon: f32) {
+        self.epsilon = epsilon;
+    }
 }
 
 impl EGreedyPolicy<Array2<f32>> {

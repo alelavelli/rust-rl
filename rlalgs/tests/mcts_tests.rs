@@ -3,7 +3,7 @@ use std::sync::RwLock;
 use rlalgs::generate_episode;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::model::{Model, ModelStep};
-use rlalgs::policy::tabular::egreedy::EGreedyTabularPolicy;
+use rlalgs::policy::egreedy::EGreedyPolicy;
 use rlalgs::policy::tabular::mcts::{self, MCTSParallelMode};
 use rlenv::tabular::terror_maze::TerrorMaze;
 use rlenv::tabular::TabularEnvironment;
@@ -75,7 +75,7 @@ fn mcts_test() {
         episode_progress: false,
     };
 
-    let rollout_policy = EGreedyTabularPolicy::new(
+    let rollout_policy = EGreedyPolicy::new_discrete(
         env.get_number_states() as usize,
         env.get_number_actions() as usize,
         0.1,
