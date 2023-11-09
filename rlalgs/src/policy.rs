@@ -3,6 +3,7 @@
 //! The module contains the implementations of Reinforcement Learning policies
 
 pub mod tabular;
+pub mod egreedy;
 use std::{error::Error, fmt::Debug};
 
 use rand::Rng;

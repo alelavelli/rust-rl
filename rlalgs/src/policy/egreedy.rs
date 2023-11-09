@@ -332,8 +332,7 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
 mod tests {
     use ndarray::Array;
 
-    use crate::policy::{tabular::egreedy::EGreedyPolicy, Policy, ValuePolicy};
-    use crate::value_function::vf_enum::ValueFunctionEnum::LinearRegression;
+    use crate::{value_function::vf_enum::ValueFunctionEnum::LinearRegression, policy::{egreedy::EGreedyPolicy, ValuePolicy, Policy}};
 
     #[test]
     fn deterministic_greedy_policy_step_discrete() {
