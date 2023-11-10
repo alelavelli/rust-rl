@@ -87,11 +87,8 @@ impl StateActionValueFunction<Vec<f32>, i32> for LinearRegression {
         action: &i32,
         observed_return: f32,
     ) -> Result<(), crate::value_function::ValueFunctionError> {
-        println!("state is {:?} and action is {:?}", state, action);
         let input = build_array_i32(state, action);
-        println!("input is {:?}", input);
         let delta = observed_return - self.value(state, action);
-        println!("delta is {:?}", delta);
         let update = delta * input;
         self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
         Ok(())
