@@ -1,5 +1,4 @@
 pub mod arena_tree;
-pub mod feature_transform;
 pub mod tree;
 
 use std::{error::Error, fmt::Debug};

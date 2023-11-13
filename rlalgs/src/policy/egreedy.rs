@@ -1,6 +1,6 @@
 use crate::policy::{Policy, PolicyError, ValuePolicy};
+use crate::preprocessing::OneHotEncoder;
 use crate::regressor::linear::LinearRegression;
-use crate::utils::feature_transform::to_ohe;
 use crate::value_function::vf_enum::ValueFunctionEnum;
 use crate::value_function::StateActionValueFunction;
 use ndarray::{s, Array, Array1, Array2};
@@ -63,14 +63,13 @@ impl<Q> EGreedyPolicy<Q> {
         *best_actions.iter().choose(rng).unwrap() as i32
     }
 
-    fn actions_probabilities<R>(&self, q_values: &Array1<f32>, rng: &mut R) -> Vec<f32>
+    fn actions_probabilities<R>(&self, q_values: &Array1<f32>, rng: &mut R) -> Array1<f32>
     where
         R: Rng + ?Sized,
     {
         let optimal_action = self.optimal_action(q_values, rng);
-
-        let mut probabilities: Vec<f32> =
-            vec![self.epsilon / self.action_dim as f32; self.action_dim];
+        let mut probabilities: Array1<f32> =
+            Array1::from_elem(self.action_dim, self.epsilon / self.action_dim as f32);
         probabilities[optimal_action as usize] += 1.0 - self.epsilon;
         probabilities
     }
@@ -79,7 +78,7 @@ impl<Q> EGreedyPolicy<Q> {
     where
         R: Rng + ?Sized,
     {
-        let probabilities = self.actions_probabilities(q_values, rng);
+        let probabilities = self.actions_probabilities(q_values, rng).to_vec();
         let pi = WeightedAliasIndex::new(probabilities)?;
         Ok(rand_distr::Distribution::sample(&pi, rng) as i32)
     }
@@ -125,7 +124,7 @@ impl EGreedyPolicy<Array2<f32>> {
 
 // action type is Vec<f32> because actions need to be transformed into
 // one hot encoding vector before be used by the q function
-type ContinuousQ = Box<dyn StateActionValueFunction<Vec<f32>, Vec<f32>>>;
+type ContinuousQ = Box<dyn StateActionValueFunction<f32, f32>>;
 impl EGreedyPolicy<ContinuousQ> {
     /// Creates a continuous state and discrete actions e-greedy policy.
     /// The state-action value function is represented by a regressor that takes
@@ -151,19 +150,16 @@ impl EGreedyPolicy<ContinuousQ> {
         }
     }
 
-    fn action_values_for_state(&self, state: &Vec<f32>) -> Array1<f32> {
-        let mut actions: Vec<Vec<f32>> = Vec::new();
-        let mut states: Vec<&Vec<f32>> = Vec::new();
-        for i in 0..self.action_dim {
-            let ohe_array = to_ohe(i, self.action_dim);
-            actions.push(ohe_array);
-            states.push(state);
-        }
-        Array1::from_shape_vec(
-            (self.action_dim,),
-            self.q.value_batch(states, actions.iter().collect()),
-        )
-        .unwrap()
+    fn action_values_for_state(&self, state: &Array1<f32>) -> Array1<f32> {
+        // replicate the state as many times are the actions
+        let states = Array::from_shape_fn((self.action_dim, state.shape()[0]), |(_, j)| state[j]);
+        let encoder = OneHotEncoder::new(self.action_dim);
+        let actions = encoder.transform(
+            &Array1::range(0.0, self.action_dim as f32, 1.0)
+                .map(|x| *x as i32)
+                .view(),
+        );
+        self.q.value_batch(&states.view(), &actions.view())
     }
 }
 
@@ -248,7 +244,7 @@ impl ValuePolicy for EGreedyPolicy<Array2<f32>> {
 }
 
 impl Policy for EGreedyPolicy<ContinuousQ> {
-    type State = Vec<f32>;
+    type State = Array1<f32>;
     type Action = i32;
 
     fn step<R>(
@@ -286,7 +282,7 @@ impl Policy for EGreedyPolicy<ContinuousQ> {
 }
 
 impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
-    type State = Vec<f32>;
+    type State = Array1<f32>;
 
     type Action = i32;
 
@@ -301,14 +297,16 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
     }
 
     fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32) {
+        let encoder = OneHotEncoder::new(self.action_dim);
         self.q
-            .update(state, &to_ohe(*action as usize, self.action_dim), value)
+            .update(&state.view(), &encoder.transform_elem(action).view(), value)
             .unwrap();
     }
 
     fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32 {
+        let encoder = OneHotEncoder::new(self.action_dim);
         self.q
-            .value(state, &to_ohe(*action as usize, self.action_dim))
+            .value(&state.view(), &encoder.transform_elem(action).view())
     }
 
     fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::State>> {
@@ -334,7 +332,7 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array;
+    use ndarray::{Array, Array1};
 
     use crate::{
         policy::{egreedy::EGreedyPolicy, Policy, ValuePolicy},
@@ -364,7 +362,7 @@ mod tests {
             0.0,
             LinearRegression { step_size: 1.0 },
         );
-        let state = vec![0.0];
+        let state = Array1::zeros(1);
         let action = 1;
         pi.update_q_entry(&state, &action, 100.0);
         let mut rng = rand::thread_rng();
@@ -417,7 +415,7 @@ mod tests {
             epsilon,
             LinearRegression { step_size: 1.0 },
         );
-        let state = vec![0.0];
+        let state = Array1::zeros(1);
         let action = 0;
         pi.update_q_entry(&state, &action, 100.0);
 

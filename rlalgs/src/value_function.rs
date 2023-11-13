@@ -5,6 +5,8 @@ pub mod vf_enum;
 
 use std::error::Error;
 
+use ndarray::{Array1, ArrayBase, Axis, Dim, ViewRepr};
+
 #[derive(thiserror::Error, Debug)]
 pub enum ValueFunctionError {
     #[error("Failed to fit value function model")]
@@ -18,29 +20,41 @@ pub enum ValueFunctionError {
 /// to generalize over unseen data.
 pub trait StateActionValueFunction<S, A> {
     /// returns the estimated value of a single pair
-    fn value(&self, state: &S, action: &A) -> f32;
+    fn value(
+        &self,
+        state: &ArrayBase<ViewRepr<&S>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&A>, Dim<[usize; 1]>>,
+    ) -> f32;
 
     /// returns the estimated values for an array of pairs
-    fn value_batch(&self, states: Vec<&S>, actions: Vec<&A>) -> Vec<f32>;
+    fn value_batch(
+        &self,
+        states: &ArrayBase<ViewRepr<&S>, Dim<[usize; 2]>>,
+        actions: &ArrayBase<ViewRepr<&A>, Dim<[usize; 2]>>,
+    ) -> Array1<f32>;
 
     /// update the model with a new sample
     fn update(
         &mut self,
-        state: &S,
-        action: &A,
+        state: &ArrayBase<ViewRepr<&S>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&A>, Dim<[usize; 1]>>,
         observed_return: f32,
     ) -> Result<(), ValueFunctionError>;
 
     /// update the model with a batch of samples
     fn update_batch(
         &mut self,
-        states: Vec<&S>,
-        actions: Vec<&A>,
-        observed_returns: Vec<f32>,
+        states: &ArrayBase<ViewRepr<&S>, Dim<[usize; 2]>>,
+        actions: &ArrayBase<ViewRepr<&A>, Dim<[usize; 2]>>,
+        observed_returns: Array1<f32>,
     ) -> Result<(), ValueFunctionError> {
         for i in 0..states.len() {
-            self.update(states[i], actions[i], observed_returns[i])
-                .unwrap();
+            self.update(
+                &states.index_axis(Axis(0), i),
+                &actions.index_axis(Axis(0), i),
+                observed_returns[i],
+            )
+            .unwrap();
         }
         Ok(())
     }

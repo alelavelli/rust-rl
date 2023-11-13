@@ -1,5 +1,5 @@
 //! Linear implementation of value function approximator
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{concatenate, Array1, Array2, ArrayBase, Axis, Dim, ViewRepr};
 use ndarray_linalg::LeastSquaresSvd;
 use ndarray_rand::RandomExt;
 use rand_distr::Uniform;
@@ -7,43 +7,6 @@ use rand_distr::Uniform;
 use crate::value_function::StateActionValueFunction;
 
 use super::Regressor;
-
-fn build_array_i32(state: &Vec<f32>, action: &i32) -> Array1<f32> {
-    ndarray::Array::from_shape_vec([state.len() + 1], [&state[..], &[*action as f32]].concat())
-        .unwrap()
-}
-
-fn build_array_f32(state: &Vec<f32>, action: &Vec<f32>) -> Array1<f32> {
-    ndarray::Array::from_shape_vec(
-        [state.len() + action.len()],
-        [&state[..], &action[..]].concat(),
-    )
-    .unwrap()
-}
-
-fn build_batch_array_i32(states: &Vec<&Vec<f32>>, actions: &[&i32]) -> Array2<f32> {
-    // https://docs.rs/ndarray/0.15.6/ndarray/struct.ArrayBase.html#conversions-from-nested-vecsarrays
-    let mut arr = Array2::zeros((states.len(), states[0].len() + 1));
-    for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
-        let sa = [&states[i][..], &[*actions[i] as f32]].concat();
-        for (j, col) in row.iter_mut().enumerate() {
-            *col = sa[j];
-        }
-    }
-    arr
-}
-
-fn build_batch_array_f32(states: &Vec<&Vec<f32>>, actions: &[&Vec<f32>]) -> Array2<f32> {
-    // https://docs.rs/ndarray/0.15.6/ndarray/struct.ArrayBase.html#conversions-from-nested-vecsarrays
-    let mut arr = Array2::zeros((states.len(), states[0].len() + actions[0].len()));
-    for (i, mut row) in arr.axis_iter_mut(Axis(0)).enumerate() {
-        let sa = [&states[i][..], &actions[i][..]].concat();
-        for (j, col) in row.iter_mut().enumerate() {
-            *col = sa[j];
-        }
-    }
-    arr
-}
 
 /// Linear Regression model
 pub struct LinearRegression {
@@ -67,58 +30,34 @@ impl LinearRegression {
     }
 }
 
-/// Implementation of StateActionValueFunction for contunuous state and discrete action
-impl StateActionValueFunction<Vec<f32>, i32> for LinearRegression {
-    fn value(&self, state: &Vec<f32>, action: &i32) -> f32 {
-        let input = build_array_i32(state, action);
-        println!("weights is {:?}", self.weights);
-        input.dot(&self.weights)[0]
-    }
-
-    fn value_batch(&self, states: Vec<&Vec<f32>>, actions: Vec<&i32>) -> Vec<f32> {
-        let input = build_batch_array_i32(&states, &actions);
-        let result = input.dot(&self.weights);
-        result.into_iter().collect()
-    }
-
-    fn update(
-        &mut self,
-        state: &Vec<f32>,
-        action: &i32,
-        observed_return: f32,
-    ) -> Result<(), crate::value_function::ValueFunctionError> {
-        let input = build_array_i32(state, action);
-        let delta = observed_return - self.value(state, action);
-        let update = delta * input;
-        self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
-        Ok(())
-    }
-
-    fn reset(&mut self) {
-        self.weights = LinearRegression::init_weights(self.dim)
-    }
-}
-
 /// Implementation of StateActionValueFunction for continuous state and action
-impl StateActionValueFunction<Vec<f32>, Vec<f32>> for LinearRegression {
-    fn value(&self, state: &Vec<f32>, action: &Vec<f32>) -> f32 {
-        let input = build_array_f32(state, action);
+impl StateActionValueFunction<f32, f32> for LinearRegression {
+    fn value(
+        &self,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+    ) -> f32 {
+        let input = concatenate(Axis(0), &[state.view(), action.view()]).unwrap();
         input.dot(&self.weights)[0]
     }
 
-    fn value_batch(&self, states: Vec<&Vec<f32>>, actions: Vec<&Vec<f32>>) -> Vec<f32> {
-        let input = build_batch_array_f32(&states, &actions);
+    fn value_batch(
+        &self,
+        states: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+        actions: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Array1<f32> {
+        let input = concatenate(Axis(1), &[states.view(), actions.view()]).unwrap();
         let result = input.dot(&self.weights);
         result.into_iter().collect()
     }
 
     fn update(
         &mut self,
-        state: &Vec<f32>,
-        action: &Vec<f32>,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
         observed_return: f32,
     ) -> Result<(), crate::value_function::ValueFunctionError> {
-        let input = build_array_f32(state, action);
+        let input = concatenate(Axis(0), &[state.view(), action.view()]).unwrap();
         let delta = observed_return - self.value(state, action);
         let update = delta * input;
         self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
@@ -146,7 +85,7 @@ impl Regressor for LinearRegression {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array2;
+    use ndarray::{Array1, Array2};
     use ndarray_rand::RandomExt;
     use rand_distr::Uniform;
 
@@ -185,11 +124,11 @@ mod tests {
 
         for _ in 0..5 {
             for i in 0..(data.x.shape()[0]) {
-                let sample_state = vec![data.x.column(0)[i]];
-                let sample_action = vec![data.x.column(1)[i]];
+                let sample_state = Array1::from_shape_vec(1, vec![data.x.column(0)[i]]).unwrap();
+                let sample_action = Array1::from_shape_vec(1, vec![data.x.column(1)[i]]).unwrap();
                 let sample_target = data.y.column(0)[i];
                 linreg
-                    .update(&sample_state, &sample_action, sample_target)
+                    .update(&sample_state.view(), &sample_action.view(), sample_target)
                     .unwrap();
             }
         }

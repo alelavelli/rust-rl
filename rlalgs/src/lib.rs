@@ -8,6 +8,7 @@ use std::{error::Error, fmt::Debug};
 pub mod learn;
 pub mod model;
 pub mod policy;
+pub mod preprocessing;
 pub mod regressor;
 pub mod utils;
 pub mod value_function;
