@@ -154,11 +154,13 @@ impl EGreedyPolicy<ContinuousQ> {
         // replicate the state as many times are the actions
         let states = Array::from_shape_fn((self.action_dim, state.shape()[0]), |(_, j)| state[j]);
         let encoder = OneHotEncoder::new(self.action_dim);
-        let actions = encoder.transform(
-            &Array1::range(0.0, self.action_dim as f32, 1.0)
-                .map(|x| *x as i32)
-                .view(),
-        );
+        let actions = encoder
+            .transform(
+                &Array1::range(0.0, self.action_dim as f32, 1.0)
+                    .map(|x| *x as i32)
+                    .view(),
+            )
+            .unwrap();
         self.q.value_batch(&states.view(), &actions.view())
     }
 }
@@ -299,14 +301,20 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
     fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32) {
         let encoder = OneHotEncoder::new(self.action_dim);
         self.q
-            .update(&state.view(), &encoder.transform_elem(action).view(), value)
+            .update(
+                &state.view(),
+                &encoder.transform_elem(action).unwrap().view(),
+                value,
+            )
             .unwrap();
     }
 
     fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32 {
         let encoder = OneHotEncoder::new(self.action_dim);
-        self.q
-            .value(&state.view(), &encoder.transform_elem(action).view())
+        self.q.value(
+            &state.view(),
+            &encoder.transform_elem(action).unwrap().view(),
+        )
     }
 
     fn get_max_q_value(&self, state: &Self::State) -> Result<f32, PolicyError<Self::State>> {
