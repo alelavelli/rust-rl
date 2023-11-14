@@ -1,4 +1,15 @@
-use ndarray::{Array1, Array2, ArrayBase, Dim, ViewRepr};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Dim, ViewRepr};
+use ndarray_stats::QuantileExt;
+use std::fmt::Debug;
+
+#[derive(thiserror::Error, Debug)]
+pub enum PreprocessingError {
+    #[error("Failed to fit data")]
+    FitError,
+
+    #[error("Failed to transform data")]
+    TransformError,
+}
 
 /// One Hot Encoder
 ///
@@ -22,18 +33,201 @@ impl OneHotEncoder {
         Array2::zeros((rows, self.num_values))
     }
 
-    pub fn transform(&self, x: &ArrayBase<ViewRepr<&i32>, Dim<[usize; 1]>>) -> Array2<f32> {
-        let mut matrix = self.empty_array2(x.len());
+    pub fn transform(
+        &self,
+        x: &ArrayBase<ViewRepr<&i32>, Dim<[usize; 1]>>,
+    ) -> Result<Array2<f32>, PreprocessingError> {
+        if *x.max().unwrap() as usize > self.num_values {
+            return Err(PreprocessingError::TransformError);
+        }
+        let mut matrix = self.empty_array2(self.num_values);
         // naive implementation
         for (i, r) in x.iter().enumerate() {
             matrix[[i, *r as usize]] = 1.0;
         }
-        matrix
+        Ok(matrix)
     }
 
-    pub fn transform_elem(&self, x: &i32) -> Array1<f32> {
+    pub fn transform_elem(&self, x: &i32) -> Result<Array1<f32>, PreprocessingError> {
+        if *x as usize >= self.num_values {
+            return Err(PreprocessingError::TransformError);
+        }
         let mut array = self.empty_array1();
         array[*x as usize] = 1.0;
-        array
+        Ok(array)
+    }
+}
+
+/// Scale data with z-score
+///
+/// $$ \tilde{x} = \frac{x - \mu}{\sigma}$$
+pub struct ZScore {
+    means: Option<Array1<f32>>,
+    stds: Option<Array1<f32>>,
+}
+
+impl Default for ZScore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ZScore {
+    pub fn new() -> ZScore {
+        ZScore {
+            means: None,
+            stds: None,
+        }
+    }
+
+    // Learns processing from data
+    pub fn fit(&mut self, x: &Array2<f32>) -> Result<&mut Self, PreprocessingError> {
+        self.means = Some(x.mean_axis(Axis(0)).ok_or(PreprocessingError::FitError)?);
+        self.stds = Some(x.std_axis(Axis(0), 1.0));
+        Ok(self)
+    }
+
+    // Transform data according to parameters
+    pub fn transform(&self, x: &Array2<f32>) -> Result<Array2<f32>, PreprocessingError> {
+        if let (Some(mu), Some(sigma)) = (self.means.as_ref(), self.stds.as_ref()) {
+            Ok((x - mu) / sigma)
+        } else {
+            Err(PreprocessingError::TransformError)
+        }
+    }
+}
+
+/// Normalize data in the interval [a, b]
+///
+/// $$ \tilde{x} = a + \frac{(x - x_{min}) \times (a - b) }{x_{max} - x_{min}} $$
+pub struct RangeNorm {
+    a: f32,
+    b: f32,
+    x_min: Option<Array1<f32>>,
+    x_max: Option<Array1<f32>>,
+}
+
+impl Default for RangeNorm {
+    fn default() -> Self {
+        Self::new(Some(0.0), Some(1.0))
+    }
+}
+
+impl RangeNorm {
+    pub fn new(a: Option<f32>, b: Option<f32>) -> RangeNorm {
+        RangeNorm {
+            a: a.unwrap_or(0.0),
+            b: b.unwrap_or(1.0),
+            x_min: None,
+            x_max: None,
+        }
+    }
+
+    pub fn fit(&mut self, x: &Array2<f32>) -> Result<&mut Self, PreprocessingError> {
+        self.x_min = Some(x.map_axis(Axis(0), |view| {
+            *view
+                .into_iter()
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap()
+        }));
+        self.x_max = Some(x.map_axis(Axis(0), |view| {
+            *view
+                .into_iter()
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap()
+        }));
+        Ok(self)
+    }
+
+    pub fn transform(&self, x: &Array2<f32>) -> Result<Array2<f32>, PreprocessingError> {
+        if let (Some(x_min), Some(x_max)) = (self.x_min.as_ref(), self.x_max.as_ref()) {
+            Ok(self.a + (x - x_min) * (self.b - self.a) / (x_max - x_min))
+        } else {
+            Err(PreprocessingError::TransformError)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use approx::assert_abs_diff_eq;
+    use ndarray::{Array1, Array2, Axis};
+    use ndarray_rand::RandomExt;
+    use rand_distr::{Normal, Uniform};
+
+    use super::{OneHotEncoder, RangeNorm, ZScore};
+
+    #[test]
+    fn ohe() {
+        let num_values = 3;
+        let encoder = OneHotEncoder::new(num_values);
+
+        let x = Array1::from_vec(vec![0, 1, 2]);
+        let result = encoder.transform(&x.view());
+        assert!(result.is_ok());
+        let unwrapped_result = result.unwrap();
+        let exact_result =
+            Array2::from_shape_vec((3, 3), vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
+                .unwrap();
+        assert_abs_diff_eq!(unwrapped_result, exact_result, epsilon = 1e-3);
+
+        let elem = 1;
+        let elem_result = encoder.transform_elem(&elem);
+        let exact_elem_result = Array1::from_vec(vec![0.0, 1.0, 0.0]);
+        assert!(elem_result.is_ok());
+        assert_eq!(elem_result.unwrap(), exact_elem_result);
+
+        let x_wrong = Array1::from_vec(vec![4, 5, 6]);
+        let wrong_result = encoder.transform(&x_wrong.view());
+        assert!(wrong_result.is_err());
+    }
+
+    #[test]
+    fn zscore() {
+        let x = Array2::random((100, 2), Normal::new(1.0, 0.3).unwrap());
+        let mut encoder = ZScore::new();
+        _ = encoder.fit(&x);
+        let x_norm = encoder.transform(&x).unwrap();
+        assert_abs_diff_eq!(encoder.means.unwrap(), Array1::ones(2), epsilon = 1e-1);
+        assert_abs_diff_eq!(
+            encoder.stds.unwrap(),
+            Array1::from_elem(2, 0.3),
+            epsilon = 1e-1
+        );
+        assert_abs_diff_eq!(
+            x_norm.mean_axis(Axis(0)).unwrap(),
+            Array1::zeros(2),
+            epsilon = 1e-1
+        );
+        assert_abs_diff_eq!(
+            x_norm.std_axis(Axis(0), 1.0),
+            Array1::ones(2),
+            epsilon = 1e-1
+        );
+    }
+
+    #[test]
+    fn range_norm() {
+        let x = Array2::random((100, 2), Uniform::new(5.0, 10.0));
+        let mut encoder = RangeNorm::default();
+        _ = encoder.fit(&x);
+        println!("{:?} {:?}", encoder.x_min, encoder.x_max);
+        let x_norm = encoder.transform(&x).unwrap();
+        assert_abs_diff_eq!(
+            x_norm.map_axis(Axis(0), |view| *view
+                .into_iter()
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap()),
+            Array1::zeros(2),
+            epsilon = 1e-3
+        );
+        assert_abs_diff_eq!(
+            x_norm.map_axis(Axis(0), |view| *view
+                .into_iter()
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap()),
+            Array1::ones(2),
+            epsilon = 1e-3
+        );
     }
 }
