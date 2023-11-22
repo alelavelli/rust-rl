@@ -206,7 +206,6 @@ impl Polynomial {
         let rows = x.shape()[0];
         if let Some(cols) = self.output_dim {
             if let Some(combinations) = self.combinations.as_ref() {
-                
                 let poly_x: RwLock<Array2<f32>> = RwLock::new(Array2::default((rows, cols)));
                 pool.install(|| {
                     combinations
@@ -228,8 +227,8 @@ impl Polynomial {
                 let moved_value = std::mem::replace(&mut *write_lock, Array2::<f32>::zeros((3, 3)));
                 Ok(moved_value)
             } else {
-                Err(PreprocessingError::TransformError)    
-            }            
+                Err(PreprocessingError::TransformError)
+            }
         } else {
             Err(PreprocessingError::TransformError)
         }
