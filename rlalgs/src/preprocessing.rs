@@ -1,6 +1,9 @@
-use ndarray::{Array1, Array2, ArrayBase, Axis, Dim, ViewRepr};
+use itertools::Itertools;
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Dim, ViewRepr};
 use ndarray_stats::QuantileExt;
-use std::fmt::Debug;
+use rayon::{prelude::*, ThreadPoolBuilder};
+
+use std::{fmt::Debug, ops::Mul, sync::RwLock};
 
 #[derive(thiserror::Error, Debug)]
 pub enum PreprocessingError {
@@ -142,6 +145,91 @@ impl RangeNorm {
     pub fn transform(&self, x: &Array2<f32>) -> Result<Array2<f32>, PreprocessingError> {
         if let (Some(x_min), Some(x_max)) = (self.x_min.as_ref(), self.x_max.as_ref()) {
             Ok(self.a + (x - x_min) * (self.b - self.a) / (x_max - x_min))
+        } else {
+            Err(PreprocessingError::TransformError)
+        }
+    }
+}
+
+/// Polynomial feature expansion
+///
+/// Expand input matrix with polynomial features
+pub struct Polynomial {
+    degree: usize,
+    interaction_only: bool,
+    input_dim: Option<usize>,
+    output_dim: Option<usize>,
+    combinations: Option<Vec<Vec<i32>>>,
+    parallel_workers: usize,
+}
+
+impl Polynomial {
+    pub fn new(degree: usize, interaction_only: bool, parallel_workers: usize) -> Polynomial {
+        Polynomial {
+            degree,
+            interaction_only,
+            input_dim: None,
+            output_dim: None,
+            combinations: None,
+            parallel_workers,
+        }
+    }
+
+    pub fn fit(&mut self, x: Array2<f32>) -> Result<&mut Self, PreprocessingError> {
+        let cols = x.shape()[1];
+        self.input_dim = Some(cols);
+
+        // Build combinations vector. Each entry contains the ids of the x array
+        // that are multiplied to create the i-th column in the transformed array
+        let mut combinations: Vec<Vec<i32>> = Vec::new();
+        for k in 1..=self.degree {
+            let it = {
+                if self.interaction_only {
+                    (0..cols as i32).combinations(k).collect::<Vec<Vec<i32>>>()
+                } else {
+                    (0..cols as i32)
+                        .combinations_with_replacement(k)
+                        .collect::<Vec<Vec<i32>>>()
+                }
+            };
+            combinations.extend(it);
+        }
+        self.output_dim = Some(combinations.len());
+        self.combinations = Some(combinations);
+        Ok(self)
+    }
+    pub fn transform(&self, x: Array2<f32>) -> Result<Array2<f32>, PreprocessingError> {
+        let pool = ThreadPoolBuilder::new()
+            .num_threads(self.parallel_workers)
+            .build()
+            .unwrap();
+        let rows = x.shape()[0];
+        if let Some(cols) = self.output_dim {
+            if let Some(combinations) = self.combinations.as_ref() {
+                
+                let poly_x: RwLock<Array2<f32>> = RwLock::new(Array2::default((rows, cols)));
+                pool.install(|| {
+                    combinations
+                        .par_iter()
+                        .enumerate()
+                        .map(|(i, c)| {
+                            let mut current_col = x.slice(s![.., c[0]]).to_owned();
+                            for el in c.iter().skip(1) {
+                                current_col = current_col.mul(&x.slice(s![.., *el]));
+                            }
+                            poly_x.write().unwrap().column_mut(i).assign(&current_col);
+                        })
+                        .collect::<Vec<()>>()
+                });
+                // Move out the value from the RwLock
+                // we get the exclusive access from the RwLock and then we replace the cotent with another array object
+                // getting back the original one that we can return to the caller
+                let mut write_lock = poly_x.write().unwrap();
+                let moved_value = std::mem::replace(&mut *write_lock, Array2::<f32>::zeros((3, 3)));
+                Ok(moved_value)
+            } else {
+                Err(PreprocessingError::TransformError)    
+            }            
         } else {
             Err(PreprocessingError::TransformError)
         }
