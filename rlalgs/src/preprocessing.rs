@@ -175,7 +175,7 @@ impl Polynomial {
         }
     }
 
-    pub fn fit(&mut self, x: Array2<f32>) -> Result<&mut Self, PreprocessingError> {
+    pub fn fit(&mut self, x: &Array2<f32>) -> Result<&mut Self, PreprocessingError> {
         let cols = x.shape()[1];
         self.input_dim = Some(cols);
 
@@ -198,7 +198,12 @@ impl Polynomial {
         self.combinations = Some(combinations);
         Ok(self)
     }
-    pub fn transform(&self, x: Array2<f32>) -> Result<Array2<f32>, PreprocessingError> {
+
+    pub fn combinations(&self) -> &Option<Vec<Vec<i32>>> {
+        &self.combinations
+    }
+
+    pub fn transform(&self, x: &Array2<f32>) -> Result<Array2<f32>, PreprocessingError> {
         let pool = ThreadPoolBuilder::new()
             .num_threads(self.parallel_workers)
             .build()
@@ -241,6 +246,8 @@ mod tests {
     use ndarray::{Array1, Array2, Axis};
     use ndarray_rand::RandomExt;
     use rand_distr::{Normal, Uniform};
+
+    use crate::preprocessing::Polynomial;
 
     use super::{OneHotEncoder, RangeNorm, ZScore};
 
@@ -316,5 +323,22 @@ mod tests {
             Array1::ones(2),
             epsilon = 1e-3
         );
+    }
+
+    #[test]
+    fn polynomial() {
+        let n = 2;
+        let degree = 3;
+        let r = 2;
+        let x = Array2::from_shape_fn((r, n), |(i, j)| (1.0 + i as f32) * (1.0 + j as f32));
+        let correct_poly = Array2::from(vec![
+            //   x    y     xx, xy,  yy,   xxx   xxy xyy, yyy
+            [1.0, 2.0, 1.0, 2.0, 4.0, 1.0, 2.0, 4.0, 8.0],
+            [2.0, 4.0, 4.0, 8.0, 16.0, 8.0, 16.0, 32.0, 64.0],
+        ]);
+        let mut transformer = Polynomial::new(degree, false, 12);
+        let _ = transformer.fit(&x);
+        let result = transformer.transform(&x).unwrap();
+        assert_abs_diff_eq!(result, correct_poly, epsilon = 1e-3);
     }
 }
