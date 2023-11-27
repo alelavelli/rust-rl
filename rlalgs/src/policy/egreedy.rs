@@ -124,7 +124,7 @@ impl EGreedyPolicy<Array2<f32>> {
 
 // action type is Vec<f32> because actions need to be transformed into
 // one hot encoding vector before be used by the q function
-type ContinuousQ = Box<dyn StateActionValueFunction<f32, f32>>;
+type ContinuousQ = Box<dyn StateActionValueFunction>;
 impl EGreedyPolicy<ContinuousQ> {
     /// Creates a continuous state and discrete actions e-greedy policy.
     /// The state-action value function is represented by a regressor that takes

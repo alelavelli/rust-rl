@@ -31,7 +31,7 @@ impl LinearRegression {
 }
 
 /// Implementation of StateActionValueFunction for continuous state and action
-impl StateActionValueFunction<f32, f32> for LinearRegression {
+impl StateActionValueFunction for LinearRegression {
     fn value(
         &self,
         state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
@@ -70,15 +70,13 @@ impl StateActionValueFunction<f32, f32> for LinearRegression {
 }
 
 impl Regressor for LinearRegression {
-    type Input = f32;
-    type Output = f32;
 
-    fn fit(&mut self, input: &Array2<Self::Input>, output: &Array2<Self::Input>) -> &mut Self {
+    fn fit(&mut self, input: &Array2<f32>, output: &Array2<f32>) -> &mut Self {
         self.weights = input.least_squares(output).unwrap().solution;
         self
     }
 
-    fn predict(&mut self, input: &Array2<Self::Input>) -> Array2<Self::Output> {
+    fn predict(&mut self, input: &Array2<f32>) -> Array2<f32> {
         input.dot(&self.weights)
     }
 }

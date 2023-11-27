@@ -168,8 +168,8 @@ impl Environment for MountainCar {
     }
 }
 
-impl DiscreteActionContinuousEnvironment<f32> for MountainCar {
-    fn get_state_space(&self) -> super::ContinuousDataSpace<f32> {
+impl DiscreteActionContinuousEnvironment for MountainCar {
+    fn get_state_space(&self) -> super::ContinuousDataSpace {
         ContinuousDataSpace {
             dimensions: 2,
             range: vec![

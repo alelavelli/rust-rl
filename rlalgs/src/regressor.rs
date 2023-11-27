@@ -14,12 +14,10 @@ pub enum RegressorError {
 }
 
 pub trait Regressor {
-    type Input;
-    type Output;
 
     /// fit the model with the dataset
-    fn fit(&mut self, input: &Array2<Self::Input>, output: &Array2<Self::Input>) -> &mut Self;
+    fn fit(&mut self, input: &Array2<f32>, output: &Array2<f32>) -> &mut Self;
 
     /// predict the target from the input
-    fn predict(&mut self, input: &Array2<Self::Input>) -> Array2<Self::Output>;
+    fn predict(&mut self, input: &Array2<f32>) -> Array2<f32>;
 }
