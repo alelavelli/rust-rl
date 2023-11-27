@@ -1,9 +1,10 @@
 use crate::policy::{Policy, PolicyError, ValuePolicy};
-use crate::preprocessing::OneHotEncoder;
+use crate::preprocessing::ohe::OneHotEncoder;
+use crate::preprocessing::Preprocessor;
 use crate::regressor::linear::LinearRegression;
 use crate::value_function::vf_enum::ValueFunctionEnum;
 use crate::value_function::StateActionValueFunction;
-use ndarray::{s, Array, Array1, Array2};
+use ndarray::{s, Array, Array1, Array2, Axis};
 use ndarray_rand::rand_distr::{Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
@@ -153,11 +154,12 @@ impl EGreedyPolicy<ContinuousQ> {
     fn action_values_for_state(&self, state: &Array1<f32>) -> Array1<f32> {
         // replicate the state as many times are the actions
         let states = Array::from_shape_fn((self.action_dim, state.shape()[0]), |(_, j)| state[j]);
-        let encoder = OneHotEncoder::new(self.action_dim);
+        let encoder = OneHotEncoder::new(Some(self.action_dim));
         let actions = encoder
             .transform(
                 &Array1::range(0.0, self.action_dim as f32, 1.0)
                     .map(|x| *x as i32)
+                    .insert_axis(Axis(1))
                     .view(),
             )
             .unwrap();
@@ -299,7 +301,7 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
     }
 
     fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32) {
-        let encoder = OneHotEncoder::new(self.action_dim);
+        let encoder = OneHotEncoder::new(Some(self.action_dim));
         self.q
             .update(
                 &state.view(),
@@ -310,7 +312,7 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
     }
 
     fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32 {
-        let encoder = OneHotEncoder::new(self.action_dim);
+        let encoder = OneHotEncoder::new(Some(self.action_dim));
         self.q.value(
             &state.view(),
             &encoder.transform_elem(action).unwrap().view(),
