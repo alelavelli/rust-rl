@@ -14,7 +14,6 @@ pub enum RegressorError {
 }
 
 pub trait Regressor {
-
     /// fit the model with the dataset
     fn fit(&mut self, input: &Array2<f32>, output: &Array2<f32>) -> &mut Self;
 

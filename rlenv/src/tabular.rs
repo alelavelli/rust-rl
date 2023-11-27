@@ -9,7 +9,6 @@ pub mod windy_gridworld;
 /// For instance, number of actions and states that in the continuous
 /// case are not meaningful.
 pub trait TabularEnvironment {
-
     /// Returns the number of states
     fn get_number_states(&self) -> i32;
 

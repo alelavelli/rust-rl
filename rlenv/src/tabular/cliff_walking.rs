@@ -269,7 +269,6 @@ impl Environment for CliffWalking {
 }
 
 impl TabularEnvironment for CliffWalking {
-
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }

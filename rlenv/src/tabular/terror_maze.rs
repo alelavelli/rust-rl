@@ -318,7 +318,6 @@ impl Environment for TerrorMaze {
 }
 
 impl TabularEnvironment for TerrorMaze {
-
     fn get_number_states(&self) -> i32 {
         self.map_dim.0 * self.map_dim.1
     }

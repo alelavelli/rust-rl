@@ -70,7 +70,6 @@ impl StateActionValueFunction for LinearRegression {
 }
 
 impl Regressor for LinearRegression {
-
     fn fit(&mut self, input: &Array2<f32>, output: &Array2<f32>) -> &mut Self {
         self.weights = input.least_squares(output).unwrap().solution;
         self
