@@ -41,10 +41,10 @@ impl Preprocessor<i32> for OneHotEncoder {
     fn fit(
         &mut self,
         x: &ArrayBase<ViewRepr<&i32>, Dim<[usize; 2]>>,
-    ) -> Result<&mut Self, PreprocessingError> {
+    ) -> Result<(), PreprocessingError> {
         // num_values is equal to the maximum number in x plus 1 because of the presence of 0
         self.num_values = Some(*x.max().unwrap() as usize + 1);
-        Ok(self)
+        Ok(())
     }
 
     fn transform(

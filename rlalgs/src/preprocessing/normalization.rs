@@ -29,10 +29,10 @@ impl Preprocessor<f32> for ZScore {
     fn fit(
         &mut self,
         x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
-    ) -> Result<&mut Self, PreprocessingError> {
+    ) -> Result<(), PreprocessingError> {
         self.means = Some(x.mean_axis(Axis(0)).ok_or(PreprocessingError::FitError)?);
         self.stds = Some(x.std_axis(Axis(0), 1.0));
-        Ok(self)
+        Ok(())
     }
 
     fn transform(
@@ -78,7 +78,7 @@ impl Preprocessor<f32> for RangeNorm {
     fn fit(
         &mut self,
         x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
-    ) -> Result<&mut Self, PreprocessingError> {
+    ) -> Result<(), PreprocessingError> {
         self.x_min = Some(x.map_axis(Axis(0), |view| {
             *view
                 .into_iter()
@@ -91,7 +91,7 @@ impl Preprocessor<f32> for RangeNorm {
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .unwrap()
         }));
-        Ok(self)
+        Ok(())
     }
 
     fn transform(

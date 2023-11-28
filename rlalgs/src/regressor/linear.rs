@@ -6,7 +6,7 @@ use rand_distr::Uniform;
 
 use crate::value_function::StateActionValueFunction;
 
-use super::Regressor;
+use super::{Regressor, RegressorError};
 
 /// Linear Regression model
 pub struct LinearRegression {
@@ -70,12 +70,16 @@ impl StateActionValueFunction for LinearRegression {
 }
 
 impl Regressor for LinearRegression {
-    fn fit(&mut self, input: &Array2<f32>, output: &Array2<f32>) -> &mut Self {
+    fn fit(
+        &mut self,
+        input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+        output: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Result<(), RegressorError> {
         self.weights = input.least_squares(output).unwrap().solution;
-        self
+        Ok(())
     }
 
-    fn predict(&mut self, input: &Array2<f32>) -> Array2<f32> {
+    fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
         input.dot(&self.weights)
     }
 }
@@ -109,9 +113,9 @@ mod tests {
     fn test_regressor_trait() {
         let data = init_data(100);
         let mut linreg = LinearRegression::new(data.x.shape()[1], 0.05);
-        linreg.fit(&data.x, &data.y);
+        linreg.fit(&data.x.view(), &data.y.view());
         assert_abs_diff_eq!(data.w, linreg.weights, epsilon = 1e-3);
-        assert_abs_diff_eq!(data.y, linreg.predict(&data.x), epsilon = 1e-3);
+        assert_abs_diff_eq!(data.y, linreg.predict(&data.x.view()), epsilon = 1e-3);
     }
 
     #[test]

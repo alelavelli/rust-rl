@@ -39,7 +39,7 @@ impl Preprocessor<f32> for Polynomial {
     fn fit(
         &mut self,
         x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
-    ) -> Result<&mut Self, PreprocessingError> {
+    ) -> Result<(), PreprocessingError> {
         let cols = x.shape()[1];
         self.input_dim = Some(cols);
 
@@ -60,7 +60,7 @@ impl Preprocessor<f32> for Polynomial {
         }
         self.output_dim = Some(combinations.len());
         self.combinations = Some(combinations);
-        Ok(self)
+        Ok(())
     }
 
     fn transform(

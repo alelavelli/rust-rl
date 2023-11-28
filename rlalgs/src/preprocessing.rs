@@ -19,7 +19,7 @@ pub trait Preprocessor<T> {
     fn fit(
         &mut self,
         x: &ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>>,
-    ) -> Result<&mut Self, PreprocessingError>;
+    ) -> Result<(), PreprocessingError>;
     fn transform(
         &self,
         x: &ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>>,
