@@ -104,11 +104,7 @@ mod tests {
     use ndarray_rand::RandomExt;
     use rand_distr::Uniform;
 
-    use crate::preprocessing::{
-        normalization::ZScore,
-        polynomial::Polynomial,
-        Preprocessor,
-    };
+    use crate::preprocessing::{normalization::ZScore, polynomial::Polynomial, Preprocessor};
 
     use super::{linear::LinearRegression, RegressionPipeline, Regressor};
 
