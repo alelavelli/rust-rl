@@ -45,6 +45,17 @@ impl Preprocessor<f32> for ZScore {
             Err(PreprocessingError::TransformError)
         }
     }
+
+    fn inverse_transform(
+        &self,
+        x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Result<Array2<f32>, PreprocessingError> {
+        if let (Some(mu), Some(sigma)) = (self.means.as_ref(), self.stds.as_ref()) {
+            Ok(x * sigma + mu)
+        } else {
+            Err(PreprocessingError::TransformError)
+        }
+    }
 }
 
 /// Normalize data in the interval [a, b]
@@ -100,6 +111,17 @@ impl Preprocessor<f32> for RangeNorm {
     ) -> Result<Array2<f32>, PreprocessingError> {
         if let (Some(x_min), Some(x_max)) = (self.x_min.as_ref(), self.x_max.as_ref()) {
             Ok(self.a + (x - x_min) * (self.b - self.a) / (x_max - x_min))
+        } else {
+            Err(PreprocessingError::TransformError)
+        }
+    }
+
+    fn inverse_transform(
+        &self,
+        x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Result<Array2<f32>, PreprocessingError> {
+        if let (Some(x_min), Some(x_max)) = (self.x_min.as_ref(), self.x_max.as_ref()) {
+            Ok((x - self.a) * (x_max - x_min) / (self.b - self.a) + x_min)
         } else {
             Err(PreprocessingError::TransformError)
         }

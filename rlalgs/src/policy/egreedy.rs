@@ -140,7 +140,7 @@ impl EGreedyPolicy<ContinuousQ> {
             ValueFunctionEnum::LinearRegression { step_size } => {
                 // the input dimension is equal to state_dim + number_actions because we transform
                 // the discrete action column into one hot encoding
-                LinearRegression::new(state_dim + number_actions, step_size)
+                LinearRegression::new(Some(state_dim + number_actions), step_size)
             }
         };
         EGreedyPolicy {

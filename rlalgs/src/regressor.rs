@@ -27,6 +27,7 @@ pub trait Regressor {
     fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32>;
 }
 
+/// Decoration of a regressor that process input and output before using the regressor
 pub struct RegressionPipeline<T: Regressor> {
     input_processing: Vec<Box<dyn Preprocessor<f32>>>,
     output_processing: Vec<Box<dyn Preprocessor<f32>>>,
@@ -79,10 +80,64 @@ where
     }
 
     fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
+        // process input
         let mut current_input = input.to_owned();
         for input_proc in self.input_processing.iter_mut() {
             current_input = input_proc.transform(&current_input.view()).unwrap();
         }
-        self.regressor.predict(&current_input.view())
+        // make prediction
+        let mut current_output = self.regressor.predict(&current_input.view());
+        // transform output
+        for output_proc in self.output_processing.iter_mut() {
+            current_output = output_proc
+                .inverse_transform(&current_output.view())
+                .unwrap();
+        }
+        current_output
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use approx::assert_abs_diff_eq;
+    use ndarray::Array2;
+    use ndarray_rand::RandomExt;
+    use rand_distr::Uniform;
+
+    use crate::preprocessing::{
+        normalization::{RangeNorm, ZScore},
+        polynomial::Polynomial,
+        Preprocessor,
+    };
+
+    use super::{linear::LinearRegression, RegressionPipeline, Regressor};
+
+    struct Data {
+        x: Array2<f32>,
+        y: Array2<f32>,
+        w: Array2<f32>,
+    }
+
+    fn init_data(n_samples: usize) -> Data {
+        let x = ndarray::Array::random((n_samples, 2), Uniform::new(-5., 5.));
+        let w = ndarray::Array::from_shape_vec((2, 1), vec![0.5, 0.1]).unwrap();
+        let y = x.dot(&w);
+        Data { x, y, w }
+    }
+
+    #[test]
+    fn test_pipeline() {
+        let data = init_data(10);
+        let input_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![
+            Box::new(ZScore::new()),
+            Box::new(Polynomial::new(2, false, 1)),
+        ];
+
+        let output_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![Box::new(ZScore::new())];
+        let regressor = LinearRegression::default();
+        let mut pipeline = RegressionPipeline::new(input_processing, output_processing, regressor);
+        pipeline.fit(&data.x.view(), &data.y.view()).unwrap();
+        let prediction = pipeline.predict(&data.x.view());
+        assert_abs_diff_eq!(data.y, prediction, epsilon = 1e-3);
     }
 }

@@ -1,4 +1,4 @@
-use std::{
+/*use std::{
     collections::HashMap,
     ops::Mul,
     sync::{Arc, RwLock, RwLockReadGuard},
@@ -223,7 +223,7 @@ fn naif_v2(degree: usize, x: Array2<f32>) {
             let split = c.split_last().unwrap();
             let elems = split.1;
 
-            let elems = Vec::from_iter(elems.iter().map(|x| *x));
+            let elems = Vec::from_iter(elems.iter().copied());
             if cache.contains_key(&elems) {
                 poly_x
                     .slice(s![.., *cache.get(&elems).unwrap()])
@@ -272,8 +272,7 @@ fn naif_par(degree: usize, x: Array2<f32>) -> Array2<f32> {
     // we get the exclusive access from the RwLock and then we replace the cotent with another array object
     // getting back the original one that we can return to the caller
     let mut write_lock = poly_x.write().unwrap();
-    let moved_value = std::mem::replace(&mut *write_lock, Array2::<f32>::zeros((3, 3)));
-    moved_value
+    std::mem::replace(&mut *write_lock, Array2::<f32>::zeros((3, 3)))
 }
 
 fn main() {
@@ -299,4 +298,47 @@ fn main() {
     let duration = start.elapsed();
     println!("Time elapsed in naif_par() is: {:?}", duration);
     //println!("{:?}", res);
+}
+*/
+
+trait MyTrait {
+    fn do_something(&self);
+}
+
+struct BaseObj {
+    a: i32,
+}
+
+impl BaseObj {
+    fn new(a: i32) -> BaseObj {
+        BaseObj { a }
+    }
+}
+
+impl MyTrait for BaseObj {
+    fn do_something(&self) {
+        println!("{}", self.a);
+    }
+}
+
+struct DecoratorObj<T> {
+    inner: T,
+}
+
+impl<T> DecoratorObj<T> {
+    fn new(inner: T) -> DecoratorObj<T> {
+        DecoratorObj { inner }
+    }
+}
+
+impl<T: MyTrait> MyTrait for DecoratorObj<T> {
+    fn do_something(&self) {
+        println!("Decorated");
+        self.inner.do_something();
+    }
+}
+
+fn main() {
+    let obj = DecoratorObj::new(BaseObj::new(2));
+    obj.do_something();
 }

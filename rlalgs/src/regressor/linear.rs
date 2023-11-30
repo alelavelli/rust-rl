@@ -10,16 +10,31 @@ use super::{Regressor, RegressorError};
 
 /// Linear Regression model
 pub struct LinearRegression {
-    dim: usize,
-    pub weights: Array2<f32>,
+    dim: Option<usize>,
+    pub weights: Option<Array2<f32>>,
     step_size: f32,
 }
 
+impl Default for LinearRegression {
+    fn default() -> Self {
+        Self {
+            dim: None,
+            weights: None,
+            step_size: 1e-3,
+        }
+    }
+}
+
 impl LinearRegression {
-    pub fn new(dim: usize, step_size: f32) -> LinearRegression {
+    pub fn new(dim: Option<usize>, step_size: f32) -> LinearRegression {
+        let weights = if let Some(actual_dim) = dim {
+            Some(LinearRegression::init_weights(actual_dim))
+        } else {
+            None
+        };
         LinearRegression {
             dim,
-            weights: LinearRegression::init_weights(dim),
+            weights,
             step_size,
         }
     }
@@ -37,8 +52,13 @@ impl StateActionValueFunction for LinearRegression {
         state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
         action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
     ) -> f32 {
-        let input = concatenate(Axis(0), &[state.view(), action.view()]).unwrap();
-        input.dot(&self.weights)[0]
+        if let Some(weights) = &self.weights {
+            let input = concatenate(Axis(0), &[state.view(), action.view()]).unwrap();
+            input.dot(weights)[0]
+        } else {
+            // use Result as returning type
+            panic!("weights are missing")
+        }
     }
 
     fn value_batch(
@@ -46,9 +66,13 @@ impl StateActionValueFunction for LinearRegression {
         states: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
         actions: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
     ) -> Array1<f32> {
-        let input = concatenate(Axis(1), &[states.view(), actions.view()]).unwrap();
-        let result = input.dot(&self.weights);
-        result.into_iter().collect()
+        if let Some(weights) = &self.weights {
+            let input = concatenate(Axis(1), &[states.view(), actions.view()]).unwrap();
+            let result = input.dot(weights);
+            result.into_iter().collect()
+        } else {
+            panic!("weights are missing")
+        }
     }
 
     fn update(
@@ -58,14 +82,25 @@ impl StateActionValueFunction for LinearRegression {
         observed_return: f32,
     ) -> Result<(), crate::value_function::ValueFunctionError> {
         let input = concatenate(Axis(0), &[state.view(), action.view()]).unwrap();
+        let weights = if let Some(weights) = &self.weights {
+            weights.clone()
+        } else {
+            self.dim = Some(input.shape()[1]);
+            LinearRegression::init_weights(input.shape()[1])
+        };
+
         let delta = observed_return - self.value(state, action);
         let update = delta * input;
-        self.weights = &self.weights + self.step_size * update.insert_axis(Axis(1));
+        self.weights = Some(weights + self.step_size * update.insert_axis(Axis(1)));
         Ok(())
     }
 
     fn reset(&mut self) {
-        self.weights = LinearRegression::init_weights(self.dim)
+        if let Some(dim) = self.dim {
+            self.weights = Some(LinearRegression::init_weights(dim))
+        } else {
+            panic!("missing dim");
+        }
     }
 }
 
@@ -75,12 +110,17 @@ impl Regressor for LinearRegression {
         input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
         output: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
     ) -> Result<(), RegressorError> {
-        self.weights = input.least_squares(output).unwrap().solution;
+        self.dim = Some(input.shape()[1]);
+        self.weights = Some(input.least_squares(output).unwrap().solution);
         Ok(())
     }
 
     fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
-        input.dot(&self.weights)
+        if let Some(weights) = &self.weights {
+            input.dot(weights)
+        } else {
+            panic!("missing weights");
+        }
     }
 }
 
@@ -112,16 +152,16 @@ mod tests {
     #[test]
     fn test_regressor_trait() {
         let data = init_data(100);
-        let mut linreg = LinearRegression::new(data.x.shape()[1], 0.05);
-        linreg.fit(&data.x.view(), &data.y.view());
-        assert_abs_diff_eq!(data.w, linreg.weights, epsilon = 1e-3);
+        let mut linreg = LinearRegression::new(Some(data.x.shape()[1]), 0.05);
+        linreg.fit(&data.x.view(), &data.y.view()).unwrap();
         assert_abs_diff_eq!(data.y, linreg.predict(&data.x.view()), epsilon = 1e-3);
+        assert_abs_diff_eq!(data.w, linreg.weights.unwrap(), epsilon = 1e-3);
     }
 
     #[test]
     fn test_sa_value_function_trait() {
         let data = init_data(100);
-        let mut linreg = LinearRegression::new(data.x.shape()[1], 0.05);
+        let mut linreg = LinearRegression::new(Some(data.x.shape()[1]), 0.05);
 
         for _ in 0..5 {
             for i in 0..(data.x.shape()[0]) {
@@ -134,6 +174,6 @@ mod tests {
             }
         }
         // verificare le shape dei pesi
-        assert_abs_diff_eq!(data.w, linreg.weights, epsilon = 1e-3);
+        assert_abs_diff_eq!(data.w, linreg.weights.unwrap(), epsilon = 1e-3);
     }
 }

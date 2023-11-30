@@ -101,6 +101,13 @@ impl Preprocessor<f32> for Polynomial {
             Err(PreprocessingError::TransformError)
         }
     }
+
+    fn inverse_transform(
+        &self,
+        _x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Result<Array2<f32>, PreprocessingError> {
+        Err(PreprocessingError::TransformError)
+    }
 }
 
 #[cfg(test)]

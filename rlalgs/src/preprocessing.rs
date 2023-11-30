@@ -20,8 +20,14 @@ pub trait Preprocessor<T> {
         &mut self,
         x: &ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>>,
     ) -> Result<(), PreprocessingError>;
+
     fn transform(
         &self,
         x: &ArrayBase<ViewRepr<&T>, Dim<[usize; 2]>>,
     ) -> Result<Array2<f32>, PreprocessingError>;
+
+    fn inverse_transform(
+        &self,
+        x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Result<Array2<T>, PreprocessingError>;
 }

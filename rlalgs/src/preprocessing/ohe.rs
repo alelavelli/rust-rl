@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, ArrayBase, Dim, ViewRepr};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Dim, ViewRepr};
 use ndarray_stats::QuantileExt;
 
 use super::{PreprocessingError, Preprocessor};
@@ -64,6 +64,14 @@ impl Preprocessor<i32> for OneHotEncoder {
         } else {
             Err(PreprocessingError::TransformError)
         }
+    }
+
+    fn inverse_transform(
+        &self,
+        x: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Result<Array2<i32>, PreprocessingError> {
+        Ok(x.map_axis(Axis(0), |row| row.argmax().unwrap() as i32)
+            .insert_axis(Axis(1)))
     }
 }
 
