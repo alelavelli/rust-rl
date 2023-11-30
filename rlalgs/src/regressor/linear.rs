@@ -27,11 +27,7 @@ impl Default for LinearRegression {
 
 impl LinearRegression {
     pub fn new(dim: Option<usize>, step_size: f32) -> LinearRegression {
-        let weights = if let Some(actual_dim) = dim {
-            Some(LinearRegression::init_weights(actual_dim))
-        } else {
-            None
-        };
+        let weights = dim.map(LinearRegression::init_weights);
         LinearRegression {
             dim,
             weights,

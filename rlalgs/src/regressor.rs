@@ -105,7 +105,7 @@ mod tests {
     use rand_distr::Uniform;
 
     use crate::preprocessing::{
-        normalization::{RangeNorm, ZScore},
+        normalization::ZScore,
         polynomial::Polynomial,
         Preprocessor,
     };
@@ -115,14 +115,14 @@ mod tests {
     struct Data {
         x: Array2<f32>,
         y: Array2<f32>,
-        w: Array2<f32>,
+        _w: Array2<f32>,
     }
 
     fn init_data(n_samples: usize) -> Data {
         let x = ndarray::Array::random((n_samples, 2), Uniform::new(-5., 5.));
         let w = ndarray::Array::from_shape_vec((2, 1), vec![0.5, 0.1]).unwrap();
         let y = x.dot(&w);
-        Data { x, y, w }
+        Data { x, y, _w: w }
     }
 
     #[test]
