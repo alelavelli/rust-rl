@@ -1,3 +1,2 @@
 #!/bin/sh
-make isort
 make format
