@@ -5,8 +5,8 @@ The approach I chosen is to follow Sutton & Barto Reinforcement Learning Book im
 I know that all these algorithms are not used in industry world but they can be a useful starting point to learn both Reinforcement Learning and Rust.
 
 The repository is structured as a workspace with two packages:
-- `rlalgs`: library crate with learning algorithms and policies
-- `rlenv`: library crate with enviroment traits
+- `rlalgs`: library crate with learning algorithms and policies;
+- `rlenv`: library crate with enviroment traits.
 
 # `rlalgs` package
 
