@@ -1,5 +1,5 @@
 /target
 /Cargo.lock
 /reference-material
-*/.DS_Store
+*.DS_Store
 *todo.md
