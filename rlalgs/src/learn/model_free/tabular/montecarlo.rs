@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressIterator};
 use log::debug;
+use ndarray::Array2;
 use rand::Rng;
 use rlenv::Environment;
 
@@ -40,7 +41,8 @@ pub fn learn<P, E, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError<i32, i32>>
 where
-    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32>,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>, Update = f32>,
     E: Environment<State = i32, Action = i32>,
     R: Rng + ?Sized,
 {
@@ -83,7 +85,7 @@ where
                 let sa_returns = returns.entry((states[t], actions[t])).or_insert(Vec::new());
                 sa_returns.push(g);
                 let new_q_value: f32 = sa_returns.iter().sum::<f32>() / sa_returns.len() as f32;
-                policy.update_q_entry(&states[t], &actions[t], new_q_value);
+                policy.update_q_entry(&states[t], &actions[t], &new_q_value);
             }
         }
     }

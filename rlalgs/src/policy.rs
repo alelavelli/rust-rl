@@ -6,6 +6,7 @@ pub mod egreedy;
 pub mod tabular;
 use std::{error::Error, fmt::Debug};
 
+use ndarray::Array1;
 use rand::Rng;
 
 #[derive(thiserror::Error, Debug)]
@@ -54,6 +55,7 @@ pub trait ValuePolicy {
     type State;
     type Action;
     type Q;
+    type Update;
 
     /// set q function
     ///
@@ -69,7 +71,7 @@ pub trait ValuePolicy {
     /// `state`: state
     /// `action`: action
     /// `value`: value of Q(s, a)
-    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32);
+    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: &Self::Update);
 
     /// Return q value of state and action
     fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32;
@@ -81,4 +83,11 @@ pub trait ValuePolicy {
 
     /// Return expected value for a state
     fn expected_q_value(&self, state: &Self::State) -> f32;
+}
+
+pub trait DifferentiablePolicy {
+    type State;
+    type Action;
+
+    fn gradient(&self, state: &Self::State, action: &Self::Action) -> Array1<f32>;
 }

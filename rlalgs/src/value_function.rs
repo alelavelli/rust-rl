@@ -19,6 +19,7 @@ pub enum ValueFunctionError {
 /// Given a set of s,a pairs and returns then it can learn an estimator
 /// to generalize over unseen data.
 pub trait StateActionValueFunction {
+    type Update;
     /// returns the estimated value of a single pair
     fn value(
         &self,
@@ -38,7 +39,7 @@ pub trait StateActionValueFunction {
         &mut self,
         state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
         action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
-        observed_return: f32,
+        update: &Self::Update,
     ) -> Result<(), ValueFunctionError>;
 
     /// update the model with a batch of samples
@@ -46,13 +47,13 @@ pub trait StateActionValueFunction {
         &mut self,
         states: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
         actions: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
-        observed_returns: Array1<f32>,
+        updates: &[Self::Update],
     ) -> Result<(), ValueFunctionError> {
-        for i in 0..states.len() {
+        for (i, update) in updates.iter().enumerate().take(states.len()) {
             self.update(
                 &states.index_axis(Axis(0), i),
                 &actions.index_axis(Axis(0), i),
-                observed_returns[i],
+                update,
             )
             .unwrap();
         }
@@ -61,4 +62,12 @@ pub trait StateActionValueFunction {
 
     /// reset the value function
     fn reset(&mut self);
+}
+
+pub trait DifferentiableStateActionValueFunction: StateActionValueFunction {
+    fn gradient(
+        &self,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+    ) -> Array1<f32>;
 }

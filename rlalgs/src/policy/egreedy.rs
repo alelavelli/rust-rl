@@ -3,7 +3,7 @@ use crate::preprocessing::ohe::OneHotEncoder;
 use crate::preprocessing::Preprocessor;
 use crate::regressor::linear::LinearRegression;
 use crate::value_function::vf_enum::ValueFunctionEnum;
-use crate::value_function::StateActionValueFunction;
+use crate::value_function::{DifferentiableStateActionValueFunction, StateActionValueFunction};
 use ndarray::{s, Array, Array1, Array2, Axis};
 use ndarray_rand::rand_distr::{Uniform, WeightedAliasIndex};
 use ndarray_rand::RandomExt;
@@ -11,6 +11,8 @@ use ndarray_stats::QuantileExt;
 use rand::seq::IteratorRandom;
 use rand::Rng;
 use rand_distr::WeightedError;
+
+use super::DifferentiablePolicy;
 
 /// Epsilon greedy policy
 ///
@@ -125,7 +127,9 @@ impl EGreedyPolicy<Array2<f32>> {
 
 // action type is Vec<f32> because actions need to be transformed into
 // one hot encoding vector before be used by the q function
-type ContinuousQ = Box<dyn StateActionValueFunction>;
+pub type ContinuousQ = Box<dyn StateActionValueFunction<Update = Array1<f32>>>;
+pub type DifferentiableContinuousQ =
+    Box<dyn DifferentiableStateActionValueFunction<Update = Array1<f32>>>;
 impl EGreedyPolicy<ContinuousQ> {
     /// Creates a continuous state and discrete actions e-greedy policy.
     /// The state-action value function is represented by a regressor that takes
@@ -137,10 +141,10 @@ impl EGreedyPolicy<ContinuousQ> {
         q_approximator: ValueFunctionEnum,
     ) -> EGreedyPolicy<ContinuousQ> {
         let q = match q_approximator {
-            ValueFunctionEnum::LinearRegression { step_size } => {
+            ValueFunctionEnum::LinearRegression => {
                 // the input dimension is equal to state_dim + number_actions because we transform
                 // the discrete action column into one hot encoding
-                LinearRegression::new(Some(state_dim + number_actions), step_size)
+                LinearRegression::new(Some(state_dim + number_actions))
             }
         };
         EGreedyPolicy {
@@ -209,6 +213,7 @@ impl ValuePolicy for EGreedyPolicy<Array2<f32>> {
     type State = i32;
     type Action = i32;
     type Q = Array2<f32>;
+    type Update = f32;
 
     fn get_q(&self) -> &Array2<f32> {
         &self.q
@@ -218,8 +223,8 @@ impl ValuePolicy for EGreedyPolicy<Array2<f32>> {
         self.q = q
     }
 
-    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32) {
-        self.q[[*state as usize, *action as usize]] = value;
+    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: &Self::Update) {
+        self.q[[*state as usize, *action as usize]] = *value;
     }
 
     fn get_q_value(&self, state: &Self::State, action: &Self::Action) -> f32 {
@@ -287,10 +292,9 @@ impl Policy for EGreedyPolicy<ContinuousQ> {
 
 impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
     type State = Array1<f32>;
-
     type Action = i32;
-
     type Q = ContinuousQ;
+    type Update = Array1<f32>;
 
     fn set_q(&mut self, q: Self::Q) {
         self.q = q;
@@ -300,7 +304,7 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
         &self.q
     }
 
-    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: f32) {
+    fn update_q_entry(&mut self, state: &Self::State, action: &Self::Action, value: &Self::Update) {
         let encoder = OneHotEncoder::new(Some(self.action_dim));
         self.q
             .update(
@@ -340,6 +344,19 @@ impl ValuePolicy for EGreedyPolicy<ContinuousQ> {
     }
 }
 
+impl DifferentiablePolicy for EGreedyPolicy<DifferentiableContinuousQ> {
+    type State = Array1<f32>;
+    type Action = i32;
+
+    fn gradient(&self, state: &Self::State, action: &Self::Action) -> Array1<f32> {
+        let encoder = OneHotEncoder::new(Some(self.action_dim));
+        self.q.gradient(
+            &state.view(),
+            &encoder.transform_elem(action).unwrap().view(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ndarray::{Array, Array1};
@@ -366,15 +383,11 @@ mod tests {
     fn deterministic_greedy_policy_step_continuous() {
         let state_dim = 1;
         let n_actions = 2;
-        let mut pi = EGreedyPolicy::new_continuous(
-            state_dim,
-            n_actions,
-            0.0,
-            LinearRegression { step_size: 1.0 },
-        );
+        let mut pi = EGreedyPolicy::new_continuous(state_dim, n_actions, 0.0, LinearRegression);
         let state = Array1::zeros(1);
         let action = 1;
-        pi.update_q_entry(&state, &action, 100.0);
+        // Calcolare il vettore dei pesi per far sì che venga fuori l'update giusto
+        pi.update_q_entry(&state, &action, &Array1::from(vec![0.0, 0.0, 100.0]));
         let mut rng = rand::thread_rng();
         assert_eq!(pi.step(&state, &mut rng).unwrap(), action);
     }
@@ -419,15 +432,11 @@ mod tests {
         let epsilon = 0.8;
         let state_dim = 1;
         let n_actions = 2;
-        let mut pi = EGreedyPolicy::new_continuous(
-            state_dim,
-            n_actions,
-            epsilon,
-            LinearRegression { step_size: 1.0 },
-        );
+        let mut pi = EGreedyPolicy::new_continuous(state_dim, n_actions, epsilon, LinearRegression);
         let state = Array1::zeros(1);
         let action = 0;
-        pi.update_q_entry(&state, &action, 100.0);
+        // Calcolare il vettore dei pesi per far sì che venga fuori l'update giusto
+        pi.update_q_entry(&state, &action, &Array1::from(vec![0.0, 0.0, 100.0]));
 
         // we make many steps for state 0 and state 1 recording the number of times a action it taken
         // the empirical frequency will be epsilon / n_actions for non optimal and epsilon / n_actions + 1 - epsilon for the optimal
@@ -456,7 +465,7 @@ mod tests {
         let n_states = 2;
         let n_actions = 5;
         let mut pi = EGreedyPolicy::new_discrete(n_states, n_actions, 0.0, false);
-        pi.update_q_entry(&0, &0, 5.0);
+        pi.update_q_entry(&0, &0, &5.0);
         assert_eq!(pi.q[[0, 0]], 5.0);
     }
 }

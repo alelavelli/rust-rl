@@ -50,7 +50,8 @@ pub fn learn<P, E, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError<i32, i32>>
 where
-    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>, Update = f32>,
     E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
@@ -59,7 +60,7 @@ where
     // therefore we set the value for each terminal state to 0
     for terminal_state in environment.get_terminal_states() {
         for i in 0..environment.get_number_actions() {
-            policy.update_q_entry(&terminal_state, &i, 0.0);
+            policy.update_q_entry(&terminal_state, &i, &0.0);
         }
     }
     let multiprogress_bar = MultiProgress::new();
@@ -98,7 +99,7 @@ where
                 let new_q_value = q_sa
                     + params.step_size * (episode_step.reward + params.gamma * q_expected - q_sa);
                 // update q entry
-                policy.update_q_entry(&state, &action, new_q_value);
+                policy.update_q_entry(&state, &action, &new_q_value);
 
                 action = policy.step(&episode_step.next_state, rng).map_err(|err| {
                     LearningError::PolicyStep {
@@ -120,7 +121,7 @@ where
                 let new_q_value =
                     q_sa + params.step_size * (episode_step.reward + params.gamma * q_spap - q_sa);
                 // update q entry
-                policy.update_q_entry(&state, &action, new_q_value);
+                policy.update_q_entry(&state, &action, &new_q_value);
                 // set A = A'
                 action = a_prime;
             }

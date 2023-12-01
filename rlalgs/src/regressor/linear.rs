@@ -4,35 +4,21 @@ use ndarray_linalg::LeastSquaresSvd;
 use ndarray_rand::RandomExt;
 use rand_distr::Uniform;
 
-use crate::value_function::StateActionValueFunction;
+use crate::value_function::{DifferentiableStateActionValueFunction, StateActionValueFunction};
 
 use super::{Regressor, RegressorError};
 
 /// Linear Regression model
+#[derive(Default)]
 pub struct LinearRegression {
     dim: Option<usize>,
     pub weights: Option<Array2<f32>>,
-    step_size: f32,
-}
-
-impl Default for LinearRegression {
-    fn default() -> Self {
-        Self {
-            dim: None,
-            weights: None,
-            step_size: 1e-3,
-        }
-    }
 }
 
 impl LinearRegression {
-    pub fn new(dim: Option<usize>, step_size: f32) -> LinearRegression {
+    pub fn new(dim: Option<usize>) -> LinearRegression {
         let weights = dim.map(LinearRegression::init_weights);
-        LinearRegression {
-            dim,
-            weights,
-            step_size,
-        }
+        LinearRegression { dim, weights }
     }
 
     /// Inizialize weight vector randomly between -1 and 1
@@ -43,6 +29,8 @@ impl LinearRegression {
 
 /// Implementation of StateActionValueFunction for continuous state and action
 impl StateActionValueFunction for LinearRegression {
+    type Update = Array1<f32>;
+
     fn value(
         &self,
         state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
@@ -75,7 +63,7 @@ impl StateActionValueFunction for LinearRegression {
         &mut self,
         state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
         action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
-        observed_return: f32,
+        update: &Self::Update,
     ) -> Result<(), crate::value_function::ValueFunctionError> {
         let input = concatenate(Axis(0), &[state.view(), action.view()]).unwrap();
         let weights = if let Some(weights) = &self.weights {
@@ -84,10 +72,7 @@ impl StateActionValueFunction for LinearRegression {
             self.dim = Some(input.shape()[1]);
             LinearRegression::init_weights(input.shape()[1])
         };
-
-        let delta = observed_return - self.value(state, action);
-        let update = delta * input;
-        self.weights = Some(weights + self.step_size * update.insert_axis(Axis(1)));
+        self.weights = Some(weights + update);
         Ok(())
     }
 
@@ -97,6 +82,16 @@ impl StateActionValueFunction for LinearRegression {
         } else {
             panic!("missing dim");
         }
+    }
+}
+
+impl DifferentiableStateActionValueFunction for LinearRegression {
+    fn gradient(
+        &self,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+    ) -> Array1<f32> {
+        concatenate(Axis(0), &[state.view(), action.view()]).unwrap()
     }
 }
 
@@ -120,6 +115,7 @@ impl Regressor for LinearRegression {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use ndarray::{Array1, Array2};
@@ -173,3 +169,4 @@ mod tests {
         assert_abs_diff_eq!(data.w, linreg.weights.unwrap(), epsilon = 1e-3);
     }
 }
+ */

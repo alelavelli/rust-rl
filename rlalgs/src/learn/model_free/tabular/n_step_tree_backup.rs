@@ -44,7 +44,8 @@ pub fn learn<P, E, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError<i32, i32>>
 where
-    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>, Update = f32>,
     E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
 {
@@ -145,7 +146,7 @@ where
                 let q_sa_tau = policy.get_q_value(&states[tau as usize], &actions[tau as usize]);
                 let new_q_value = q_sa_tau + params.step_size * (return_g - q_sa_tau);
 
-                policy.update_q_entry(&states[tau as usize], &actions[tau as usize], new_q_value);
+                policy.update_q_entry(&states[tau as usize], &actions[tau as usize], &new_q_value);
             }
 
             if verbosity.render_env {

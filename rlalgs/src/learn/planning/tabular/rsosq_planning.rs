@@ -44,7 +44,8 @@ pub fn learn<P, M, R>(
     verbosity: &VerbosityConfig,
 ) -> Result<P, LearningError<i32, i32>>
 where
-    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>, Update = f32>,
     R: Rng + ?Sized,
     M: Model<State = i32, Action = i32>,
 {
@@ -75,7 +76,7 @@ where
             })?;
         let new_value =
             q_sa + params.step_size * (next_step_sample.reward + params.gamma * q_max - q_sa);
-        policy.update_q_entry(&state, &action, new_value);
+        policy.update_q_entry(&state, &action, &new_value);
     }
 
     Ok(policy)

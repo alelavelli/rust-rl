@@ -4,6 +4,7 @@
 
 use std::{error::Error, fmt::Debug};
 
+use ndarray::{ArrayBase, Dim, OwnedRepr};
 use rlenv::EnvironmentError;
 
 use crate::{policy::PolicyError, EpisodeError};
@@ -35,6 +36,24 @@ pub enum LearningError<S, A> {
     Unknown(#[source] Box<dyn Error>),
 }
 
+impl
+    From<
+        LearningError<
+            ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>>,
+            ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>>,
+        >,
+    > for LearningError<ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>>, i32>
+{
+    fn from(
+        value: LearningError<
+            ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>>,
+            ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>>,
+        >,
+    ) -> Self {
+        value.into()
+    }
+}
+
 /// This struct contains parameters for learning algorithms that define
 /// verbosity configurations. According to them different level of progress
 /// will be shown to the console
@@ -46,3 +65,5 @@ pub struct VerbosityConfig {
     /// true to show progress bar at episode level
     pub episode_progress: bool,
 }
+
+pub type ContinuousLearningError = LearningError<ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>>, i32>;
