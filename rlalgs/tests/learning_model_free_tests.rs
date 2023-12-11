@@ -10,7 +10,6 @@ use rlalgs::learn::model_free::tabular::n_step_tree_backup;
 use rlalgs::learn::model_free::tabular::qlearning;
 use rlalgs::learn::model_free::tabular::sarsa;
 use rlalgs::learn::VerbosityConfig;
-use rlalgs::policy;
 use rlalgs::policy::egreedy::EGreedyPolicy;
 use rlalgs::preprocessing::normalization::ZScore;
 use rlalgs::preprocessing::polynomial::Polynomial;
@@ -594,13 +593,15 @@ fn sarsa_mountain_car() {
         env.get_state_space().dimensions as usize,
         env.get_number_actions() as usize,
         0.8,
-        Box::new(LinearRegression::new(Some(env.get_state_space().dimensions as usize + env.get_number_actions() as usize))),
+        Box::new(LinearRegression::new(Some(
+            env.get_state_space().dimensions as usize + env.get_number_actions() as usize,
+        ))),
         //Box::new(q),
     );
 
     let params = sarsa_continuous::Params {
         episodes: 500,
-        gamma: 0.9,
+        gamma: 0.8,
         step_size: 0.5,
         episode_max_len: 2000,
         expected: false,
