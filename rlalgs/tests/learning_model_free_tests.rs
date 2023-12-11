@@ -1,6 +1,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::generate_episode;
+use rlalgs::learn::model_free::continuous::sarsa as sarsa_continuous;
 use rlalgs::learn::model_free::tabular::double_qlearning;
 use rlalgs::learn::model_free::tabular::montecarlo;
 use rlalgs::learn::model_free::tabular::n_step_q_sigma;
@@ -9,7 +10,15 @@ use rlalgs::learn::model_free::tabular::n_step_tree_backup;
 use rlalgs::learn::model_free::tabular::qlearning;
 use rlalgs::learn::model_free::tabular::sarsa;
 use rlalgs::learn::VerbosityConfig;
+use rlalgs::policy;
 use rlalgs::policy::egreedy::EGreedyPolicy;
+use rlalgs::preprocessing::normalization::ZScore;
+use rlalgs::preprocessing::polynomial::Polynomial;
+use rlalgs::preprocessing::Preprocessor;
+use rlalgs::regressor::linear::LinearRegression;
+use rlalgs::regressor::RegressionPipeline;
+use rlenv::continuous::mountain_car::MountainCar;
+use rlenv::continuous::DiscreteActionContinuousEnvironment;
 use rlenv::tabular::cliff_walking::CliffWalking;
 use rlenv::tabular::frozen::FrozenLake;
 use rlenv::tabular::windy_gridworld::WindyGridworld;
@@ -566,4 +575,59 @@ fn n_step_q_sigma_windy_girdworld() {
             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0
         ]
     );
+}
+
+#[test]
+fn sarsa_mountain_car() {
+    let mut rng = StdRng::seed_from_u64(222);
+    let env = MountainCar::new(&mut rng);
+
+    let input_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![
+        Box::new(ZScore::new()),
+        Box::new(Polynomial::new(2, false, 1)),
+    ];
+    let output_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![Box::new(ZScore::new())];
+    let regressor = LinearRegression::default();
+    let q = RegressionPipeline::new(input_processing, output_processing, regressor);
+
+    let policy = EGreedyPolicy::new_differentiable_continuous(
+        env.get_state_space().dimensions as usize,
+        env.get_number_actions() as usize,
+        0.8,
+        Box::new(LinearRegression::new(Some(env.get_state_space().dimensions as usize + env.get_number_actions() as usize))),
+        //Box::new(q),
+    );
+
+    let params = sarsa_continuous::Params {
+        episodes: 500,
+        gamma: 0.9,
+        step_size: 0.5,
+        episode_max_len: 2000,
+        expected: false,
+    };
+    let verbosity = VerbosityConfig {
+        render_env: false,
+        learning_progress: true,
+        episode_progress: true,
+    };
+    let result = sarsa_continuous::learn(policy, env, params, &mut rng, &verbosity);
+
+    assert!(result.is_ok());
+    let mut policy = result.unwrap();
+    let mut env = MountainCar::new(&mut rng);
+    for i in 0..10 {
+        println!("Try {i}");
+        policy.set_epsilon(0.8);
+        let episode = generate_episode(
+            &mut policy,
+            &mut env,
+            Some(5000),
+            &mut rand::thread_rng(),
+            false,
+            None,
+        )
+        .unwrap();
+        println!("Last reward is {:?}", episode.rewards.last().unwrap());
+    }
+    //assert!(episode.rewards.last().unwrap() == &0.0)
 }

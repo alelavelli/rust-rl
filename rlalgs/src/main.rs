@@ -301,6 +301,8 @@ fn main() {
 }
 */
 
+use ndarray::{concatenate, Array1, Axis};
+
 trait MyTrait {
     fn do_something(&self);
 }
@@ -341,4 +343,10 @@ impl<T: MyTrait> MyTrait for DecoratorObj<T> {
 fn main() {
     let obj = DecoratorObj::new(BaseObj::new(2));
     obj.do_something();
+
+    let a: Array1<f32> = Array1::zeros(5);
+    let b: Array1<f32> = Array1::zeros(0);
+    println!("a: {:?},\nb: {:?}", a, b);
+    let c = concatenate(Axis(0), &[a.view(), b.view()]).unwrap();
+    println!("c: {:?}", c);
 }

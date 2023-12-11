@@ -67,8 +67,8 @@ where
     P: Policy<State = S, Action = A>,
     E: Environment<State = S, Action = A>,
     R: Rng + ?Sized,
-    S: Copy,
-    A: Copy,
+    S: Clone,
+    A: Clone,
 {
     // trace variables
     let mut states: Vec<S> = Vec::new();
@@ -122,19 +122,21 @@ where
         // get action from policy
         action = policy
             .step(&state, rng)
-            .map_err(|err| EpisodeError::PolicyStep { source: err, state })?;
+            .map_err(|err| EpisodeError::PolicyStep {
+                source: err,
+                state: state.clone(),
+            })?;
         // record s_t, a_t pair
-        states.push(state);
-        actions.push(action);
+        states.push(state.clone());
+        actions.push(action.clone());
         // make environment step
-        let episode_step =
-            environment
-                .step(&action, rng)
-                .map_err(|err| EpisodeError::EnvironmentStep {
-                    source: err,
-                    action,
-                })?;
-        state = episode_step.next_state;
+        let episode_step = environment.step(&action.clone(), rng).map_err(|err| {
+            EpisodeError::EnvironmentStep {
+                source: err,
+                action,
+            }
+        })?;
+        state = episode_step.next_state.clone();
         reward = episode_step.reward;
 
         // record r_{t+1}
@@ -145,7 +147,7 @@ where
         }
 
         if episode_step.terminated | (step_number as f64 >= episode_max_len) {
-            states.push(episode_step.next_state);
+            states.push(episode_step.next_state.clone());
             break;
         }
     }

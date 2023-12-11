@@ -69,10 +69,10 @@ impl StateActionValueFunction for LinearRegression {
         let weights = if let Some(weights) = &self.weights {
             weights.clone()
         } else {
-            self.dim = Some(input.shape()[1]);
-            LinearRegression::init_weights(input.shape()[1])
+            self.dim = Some(input.len());
+            LinearRegression::init_weights(*self.dim.as_ref().unwrap())
         };
-        self.weights = Some(weights + update);
+        self.weights = Some((weights.remove_axis(Axis(1)) + update).insert_axis(Axis(1)));
         Ok(())
     }
 
@@ -106,7 +106,7 @@ impl Regressor for LinearRegression {
         Ok(())
     }
 
-    fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
+    fn predict(&self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
         if let Some(weights) = &self.weights {
             input.dot(weights)
         } else {

@@ -3,9 +3,12 @@
 
 use std::error::Error;
 
-use ndarray::{Array2, ArrayBase, Dim, ViewRepr};
+use ndarray::{concatenate, Array1, Array2, ArrayBase, Axis, Dim, ViewRepr};
 
-use crate::preprocessing::Preprocessor;
+use crate::{
+    preprocessing::Preprocessor,
+    value_function::{DifferentiableStateActionValueFunction, StateActionValueFunction},
+};
 
 pub mod linear;
 
@@ -24,7 +27,7 @@ pub trait Regressor {
     ) -> Result<(), RegressorError>;
 
     /// predict the target from the input
-    fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32>;
+    fn predict(&self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32>;
 }
 
 /// Decoration of a regressor that process input and output before using the regressor
@@ -79,21 +82,118 @@ where
         Ok(())
     }
 
-    fn predict(&mut self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
+    fn predict(&self, input: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>) -> Array2<f32> {
         // process input
         let mut current_input = input.to_owned();
-        for input_proc in self.input_processing.iter_mut() {
+        for input_proc in self.input_processing.iter() {
             current_input = input_proc.transform(&current_input.view()).unwrap();
         }
         // make prediction
         let mut current_output = self.regressor.predict(&current_input.view());
         // transform output
-        for output_proc in self.output_processing.iter_mut() {
+        for output_proc in self.output_processing.iter() {
             current_output = output_proc
                 .inverse_transform(&current_output.view())
                 .unwrap();
         }
         current_output
+    }
+}
+
+impl<T> StateActionValueFunction for RegressionPipeline<T>
+where
+    T: Regressor + StateActionValueFunction<Update = Array1<f32>>,
+{
+    type Update = Array1<f32>;
+
+    fn value(
+        &self,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+    ) -> f32 {
+        let mut current_input = concatenate(Axis(0), &[state.view(), action.view()])
+            .unwrap()
+            .insert_axis(Axis(0));
+        for input_proc in self.input_processing.iter() {
+            current_input = input_proc.transform(&current_input.view()).unwrap();
+        }
+        let mut current_output = self.regressor.predict(&current_input.view());
+        // transform output
+        for output_proc in self.output_processing.iter() {
+            current_output = output_proc
+                .inverse_transform(&current_output.view())
+                .unwrap();
+        }
+        // we know that there is only one element
+        assert_eq!(current_output.shape(), [1, 1]);
+        current_output[[0, 0]]
+    }
+
+    fn value_batch(
+        &self,
+        states: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+        actions: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>>,
+    ) -> Array1<f32> {
+        let mut current_input = concatenate(Axis(1), &[states.view(), actions.view()]).unwrap();
+        for input_proc in self.input_processing.iter() {
+            current_input = input_proc.transform(&current_input.view()).unwrap();
+        }
+        let mut current_output = self.regressor.predict(&current_input.view());
+        // transform output
+        for output_proc in self.output_processing.iter() {
+            current_output = output_proc
+                .inverse_transform(&current_output.view())
+                .unwrap();
+        }
+        current_output.remove_axis(Axis(1))
+    }
+
+    fn update(
+        &mut self,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        update: &Self::Update,
+    ) -> Result<(), crate::value_function::ValueFunctionError> {
+        let mut current_input = concatenate(Axis(0), &[state.view(), action.view()])
+            .unwrap()
+            .insert_axis(Axis(0));
+        for input_proc in self.input_processing.iter() {
+            current_input = input_proc.transform(&current_input.view()).unwrap();
+        }
+        self.regressor.update(
+            &current_input.remove_axis(Axis(0)).view(),
+            &Array1::zeros(0).view(),
+            update,
+        )?;
+        Ok(())
+    }
+
+    fn reset(&mut self) {
+        self.regressor.reset();
+    }
+}
+
+impl<T> DifferentiableStateActionValueFunction for RegressionPipeline<T>
+where
+    T: DifferentiableStateActionValueFunction
+        + Regressor
+        + StateActionValueFunction<Update = Array1<f32>>,
+{
+    fn gradient(
+        &self,
+        state: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+        action: &ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>>,
+    ) -> Array1<f32> {
+        let mut current_input = concatenate(Axis(0), &[state.view(), action.view()])
+            .unwrap()
+            .insert_axis(Axis(0));
+        for input_proc in self.input_processing.iter() {
+            current_input = input_proc.transform(&current_input.view()).unwrap();
+        }
+        self.regressor.gradient(
+            &current_input.remove_axis(Axis(0)).view(),
+            &Array1::zeros(0).view(),
+        )
     }
 }
 

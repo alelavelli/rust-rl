@@ -78,6 +78,7 @@ impl MountainCar {
 
     fn get_state_reward(&self, state: &MountainCarState) -> f32 {
         if state.position >= 0.5 {
+            println!("WE GOT IT");
             0.0
         } else {
             -1.0

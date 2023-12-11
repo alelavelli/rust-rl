@@ -1,8 +1,6 @@
 //! Value function module contains structs and traits for State and State-Action Value function
 //! in continuous environments.
 
-pub mod vf_enum;
-
 use std::error::Error;
 
 use ndarray::{Array1, ArrayBase, Axis, Dim, ViewRepr};

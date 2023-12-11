@@ -5,7 +5,7 @@ use rlenv::{continuous::DiscreteActionContinuousEnvironment, Environment};
 
 use crate::{
     learn::{ContinuousLearningError, LearningError, VerbosityConfig},
-    policy::{egreedy::ContinuousQ, DifferentiablePolicy, Policy, ValuePolicy},
+    policy::{egreedy::DifferentiableContinuousQ, DifferentiablePolicy, Policy, ValuePolicy},
 };
 
 /// Parameters for sarsa learning algorithm
@@ -35,8 +35,12 @@ pub fn learn<P, E, R>(
 ) -> Result<P, ContinuousLearningError>
 where
     P: Policy<State = Array1<f32>, Action = i32>
-        + ValuePolicy<State = Array1<f32>, Action = i32, Q = ContinuousQ, Update = Array1<f32>>
-        + DifferentiablePolicy<State = Array1<f32>, Action = i32>,
+        + ValuePolicy<
+            State = Array1<f32>,
+            Action = i32,
+            Q = DifferentiableContinuousQ,
+            Update = Array1<f32>,
+        > + DifferentiablePolicy<State = Array1<f32>, Action = i32>,
     E: Environment<State = Array1<f32>, Action = i32> + DiscreteActionContinuousEnvironment,
     R: Rng + ?Sized,
 {
@@ -87,7 +91,11 @@ where
                 // differently from the tabular case, we cannot compute the new q value and setup it to the q function
                 // instead, we compute the update factor and then we call the method so that the policy can update internally
                 // the regressor
-                let q_spap = policy.get_q_value(&episode_step.next_state, &a_prime);
+                let q_spap = if episode_step.terminated {
+                    policy.get_q_value(&episode_step.next_state, &a_prime)
+                } else {
+                    0.0
+                };
                 let weight_update = params.step_size
                     * (episode_step.reward + params.gamma * q_spap - q_sa)
                     * policy.gradient(&state, &action);
