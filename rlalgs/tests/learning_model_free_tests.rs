@@ -604,7 +604,7 @@ fn sarsa_mountain_car() {
     );
 
     let params = sarsa_continuous::Params {
-        episodes: 200,
+        episodes: 10,
         gamma: 0.8,
         step_size: 0.05,
         episode_max_len: 2000,
