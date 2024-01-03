@@ -316,10 +316,7 @@ fn double_qlearning_cliff_walking() {
         None,
     )
     .unwrap();
-    assert_eq!(
-        *episode.states.last().unwrap(),
-        39
-    );
+    assert_eq!(*episode.states.last().unwrap(), 39);
     assert_eq!(
         episode.rewards,
         vec![
