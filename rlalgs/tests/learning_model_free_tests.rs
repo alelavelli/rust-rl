@@ -14,9 +14,9 @@ use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::egreedy::EGreedyPolicy;
 use rlalgs::preprocessing::polynomial::Polynomial;
 use rlalgs::preprocessing::Preprocessor;
-use rlalgs::regressor::Regressor;
 use rlalgs::regressor::linear::LinearRegression;
 use rlalgs::regressor::RegressionPipeline;
+use rlalgs::regressor::Regressor;
 use rlenv::continuous::mountain_car::MountainCar;
 use rlenv::continuous::DiscreteActionContinuousEnvironment;
 use rlenv::tabular::cliff_walking::CliffWalking;
@@ -583,17 +583,19 @@ fn sarsa_mountain_car() {
     let mut rng = StdRng::seed_from_u64(222);
     let env = MountainCar::new(&mut rng);
 
-    let input_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![
-        Box::new(Polynomial::new(2, false, 1)),
-    ];
+    let input_processing: Vec<Box<dyn Preprocessor<f32>>> =
+        vec![Box::new(Polynomial::new(2, false, 1))];
     let output_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![];
     let regressor = LinearRegression::default();
     let mut q = RegressionPipeline::new(input_processing, output_processing, regressor);
     // Fit Q with one sample to initialize weights and extraction
-    let input = Array2::zeros((1, env.get_state_space().dimensions as usize + env.get_number_actions() as usize));
+    let input = Array2::zeros((
+        1,
+        env.get_state_space().dimensions as usize + env.get_number_actions() as usize,
+    ));
     let output = Array2::zeros((1, 1));
     q.fit(&input.view(), &output.view()).unwrap();
-    
+
     let policy = EGreedyPolicy::new_differentiable_continuous(
         env.get_state_space().dimensions as usize,
         env.get_number_actions() as usize,
