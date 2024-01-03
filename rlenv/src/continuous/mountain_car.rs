@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use ndarray::Array1;
 use rand_distr::Distribution;
 
 use rand::distributions::Uniform;
@@ -18,14 +18,14 @@ struct MountainCarState {
 }
 
 impl MountainCarState {
-    fn to_array(&self) -> Array2<f32> {
-        Array2::from(vec![[self.position, self.speed]])
+    fn to_array(&self) -> Array1<f32> {
+        Array1::from(vec![self.position, self.speed])
     }
 
-    fn from_array(state: &Array2<f32>) -> MountainCarState {
+    fn from_array(state: &Array1<f32>) -> MountainCarState {
         MountainCarState {
-            position: state[(0, 0)],
-            speed: state[(0, 1)],
+            position: state[0],
+            speed: state[1],
         }
     }
 }
@@ -90,7 +90,7 @@ impl MountainCar {
 }
 
 impl Environment for MountainCar {
-    type State = Array2<f32>;
+    type State = Array1<f32>;
     type Action = i32;
 
     fn reset<R>(&mut self, rng: &mut R) -> Self::State
@@ -107,7 +107,7 @@ impl Environment for MountainCar {
     }
 
     fn is_terminal(&self, state: &Self::State) -> bool {
-        state[(0, 0)] >= 0.5
+        state[0] >= 0.5
     }
 
     /// The state evolves with the following dynamics:
@@ -168,8 +168,8 @@ impl Environment for MountainCar {
     }
 }
 
-impl DiscreteActionContinuousEnvironment<f32> for MountainCar {
-    fn get_state_space(&self) -> super::ContinuousDataSpace<f32> {
+impl DiscreteActionContinuousEnvironment for MountainCar {
+    fn get_state_space(&self) -> super::ContinuousDataSpace {
         ContinuousDataSpace {
             dimensions: 2,
             range: vec![

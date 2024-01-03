@@ -11,9 +11,10 @@ gymnasium = ["rlenv/gymnasium"]
 
 [dependencies]
 rlenv = { path = "../rlenv" }
-ndarray = { workspace = true }
+ndarray = { workspace = true, features = ["approx-0_5"] }
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
+ndarray-linalg = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
 colored = { workspace = true }
@@ -25,3 +26,4 @@ env_logger = { workspace = true }
 indicatif = "0.17.3"
 keyed_priority_queue = "0.4.1"
 ordered-float = "3.7.0"
+approx = "0.5.1"

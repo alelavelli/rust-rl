@@ -39,7 +39,8 @@ fn compute_update<P>(
     params: &Params,
 ) -> Result<f32, LearningError<i32, i32>>
 where
-    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>, Update = f32>,
 {
     let q_sa = policy.get_q_value(&state_action.state, &state_action.action);
     let q_max = policy
@@ -86,7 +87,8 @@ pub fn learn<P, E, R, M>(
     verbosity: &VerbosityConfig,
 ) -> Result<(P, M), LearningError<i32, i32>>
 where
-    P: Policy<State = i32, Action = i32> + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>>,
+    P: Policy<State = i32, Action = i32>
+        + ValuePolicy<State = i32, Action = i32, Q = Array2<f32>, Update = f32>,
     E: Environment<State = i32, Action = i32> + TabularEnvironment,
     R: Rng + ?Sized,
     M: Model<State = i32, Action = i32>,
@@ -153,14 +155,15 @@ where
             policy.update_q_entry(
                 &queue_sa.state,
                 &queue_sa.action,
-                q_sa + params.step_size
-                    * compute_update(
-                        &policy,
-                        &queue_sa,
-                        model_step.state,
-                        model_step.reward,
-                        &params,
-                    )?,
+                &(q_sa
+                    + params.step_size
+                        * compute_update(
+                            &policy,
+                            &queue_sa,
+                            model_step.state,
+                            model_step.reward,
+                            &params,
+                        )?),
             );
 
             // loop for all S,A predicted to lead to S
