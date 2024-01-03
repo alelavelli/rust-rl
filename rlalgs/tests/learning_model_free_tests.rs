@@ -1,3 +1,4 @@
+use ndarray::Array2;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rlalgs::generate_episode;
@@ -11,9 +12,9 @@ use rlalgs::learn::model_free::tabular::qlearning;
 use rlalgs::learn::model_free::tabular::sarsa;
 use rlalgs::learn::VerbosityConfig;
 use rlalgs::policy::egreedy::EGreedyPolicy;
-use rlalgs::preprocessing::normalization::ZScore;
 use rlalgs::preprocessing::polynomial::Polynomial;
 use rlalgs::preprocessing::Preprocessor;
+use rlalgs::regressor::Regressor;
 use rlalgs::regressor::linear::LinearRegression;
 use rlalgs::regressor::RegressionPipeline;
 use rlenv::continuous::mountain_car::MountainCar;
@@ -51,6 +52,7 @@ fn montecarlo_egreedy_frozen() {
 
     let result = montecarlo::learn(policy, env, params, &mut rng, &verbosity);
     assert!(result.is_ok());
+
     let mut policy = result.unwrap();
 
     policy.set_epsilon(0.0);
@@ -582,27 +584,27 @@ fn sarsa_mountain_car() {
     let env = MountainCar::new(&mut rng);
 
     let input_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![
-        Box::new(ZScore::new()),
         Box::new(Polynomial::new(2, false, 1)),
     ];
-    let output_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![Box::new(ZScore::new())];
+    let output_processing: Vec<Box<dyn Preprocessor<f32>>> = vec![];
     let regressor = LinearRegression::default();
-    let q = RegressionPipeline::new(input_processing, output_processing, regressor);
-
+    let mut q = RegressionPipeline::new(input_processing, output_processing, regressor);
+    // Fit Q with one sample to initialize weights and extraction
+    let input = Array2::zeros((1, env.get_state_space().dimensions as usize + env.get_number_actions() as usize));
+    let output = Array2::zeros((1, 1));
+    q.fit(&input.view(), &output.view()).unwrap();
+    
     let policy = EGreedyPolicy::new_differentiable_continuous(
         env.get_state_space().dimensions as usize,
         env.get_number_actions() as usize,
         0.8,
-        Box::new(LinearRegression::new(Some(
-            env.get_state_space().dimensions as usize + env.get_number_actions() as usize,
-        ))),
-        //Box::new(q),
+        Box::new(q),
     );
 
     let params = sarsa_continuous::Params {
-        episodes: 500,
+        episodes: 200,
         gamma: 0.8,
-        step_size: 0.5,
+        step_size: 0.05,
         episode_max_len: 2000,
         expected: false,
     };
